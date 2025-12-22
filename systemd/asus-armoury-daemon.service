@@ -1,0 +1,24 @@
+[Unit]
+Description=ASUS Armoury Crate Linux Daemon
+Documentation=https://github.com/asus-armoury-linux/asus-armoury-crate
+After=multi-user.target dbus.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/asus-armoury-daemon
+Restart=on-failure
+RestartSec=5
+User=root
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/sys /var/log/asus-armoury
+NoNewPrivileges=false
+CapabilityBoundingSet=CAP_SYS_RAWIO CAP_DAC_OVERRIDE
+
+[Install]
+WantedBy=multi-user.target

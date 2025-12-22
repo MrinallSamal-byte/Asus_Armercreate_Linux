@@ -1,0 +1,28 @@
+# ASUS Armoury Crate Linux - udev rules for hardware access
+#
+# These rules provide non-root access to ASUS-specific hardware interfaces
+
+# ASUS WMI platform device
+SUBSYSTEM=="platform", KERNEL=="asus-nb-wmi", MODE="0664", GROUP="asus-armoury"
+
+# ASUS keyboard backlight
+SUBSYSTEM=="leds", KERNEL=="asus::kbd_backlight", MODE="0664", GROUP="asus-armoury"
+
+# ASUS battery charge control
+SUBSYSTEM=="power_supply", KERNEL=="BAT*", ATTR{charge_control_end_threshold}=="*", \
+    RUN+="/bin/chmod 664 /sys/class/power_supply/%k/charge_control_end_threshold"
+
+# ASUS hwmon devices (fans, temperatures)
+SUBSYSTEM=="hwmon", DRIVERS=="asus-*", MODE="0664", GROUP="asus-armoury"
+
+# ASUS HID devices (keyboard, etc.)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0b05", MODE="0664", GROUP="asus-armoury"
+
+# ASUS USB devices
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0b05", MODE="0664", GROUP="asus-armoury"
+
+# Anime Matrix display (ROG)
+KERNEL=="asusd-anime", MODE="0664", GROUP="asus-armoury"
+
+# Allow access to thermal zone controls
+SUBSYSTEM=="thermal", MODE="0664", GROUP="asus-armoury"
