@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+
+  <vendor>ASUS Armoury Crate Linux</vendor>
+  <vendor_url>https://github.com/asus-armoury-linux</vendor_url>
+
+  <action id="org.asus.armoury.set-performance-mode">
+    <description>Set CPU performance mode</description>
+    <message>Authentication is required to change performance mode</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.asus.armoury.set-fan-speed">
+    <description>Set fan speed</description>
+    <message>Authentication is required to change fan speed</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.asus.armoury.set-rgb">
+    <description>Set RGB keyboard lighting</description>
+    <message>Authentication is required to change RGB settings</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.asus.armoury.set-battery-limit">
+    <description>Set battery charge limit</description>
+    <message>Authentication is required to change battery settings</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.asus.armoury.apply-profile">
+    <description>Apply performance profile</description>
+    <message>Authentication is required to apply a performance profile</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+</policyconfig>
