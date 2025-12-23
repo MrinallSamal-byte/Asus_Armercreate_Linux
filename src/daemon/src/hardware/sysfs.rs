@@ -9,6 +9,7 @@ use std::path::Path;
 
 // ASUS-specific sysfs paths
 const PLATFORM_PROFILE: &str = "/sys/firmware/acpi/platform_profile";
+// Used to query available performance profiles - planned for future use in capability detection
 #[allow(dead_code)]
 const PLATFORM_PROFILE_CHOICES: &str = "/sys/firmware/acpi/platform_profile_choices";
 const ASUS_WMI_PATH: &str = "/sys/devices/platform/asus-nb-wmi";

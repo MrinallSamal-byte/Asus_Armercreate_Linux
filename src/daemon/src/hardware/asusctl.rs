@@ -7,12 +7,11 @@
 //! but are available for future integration when asusctl is configured as the
 //! preferred backend.
 
-#![allow(dead_code)]
-
 use asus_armoury_common::{ArmouryResult, ArmouryError, PerformanceMode, RgbSettings, RgbEffect};
 use std::process::Command;
 
 /// Check if asusctl is available on the system
+#[allow(dead_code)]
 pub fn is_available() -> bool {
     Command::new("asusctl")
         .arg("--version")
@@ -22,6 +21,7 @@ pub fn is_available() -> bool {
 }
 
 /// Set performance profile using asusctl
+#[allow(dead_code)]
 pub fn set_profile(mode: PerformanceMode) -> ArmouryResult<()> {
     let profile = match mode {
         PerformanceMode::Silent => "Quiet",
@@ -44,6 +44,7 @@ pub fn set_profile(mode: PerformanceMode) -> ArmouryResult<()> {
 }
 
 /// Get current performance profile using asusctl
+#[allow(dead_code)]
 pub fn get_profile() -> Option<PerformanceMode> {
     let output = Command::new("asusctl")
         .args(["profile", "-p"])
@@ -66,6 +67,7 @@ pub fn get_profile() -> Option<PerformanceMode> {
 }
 
 /// Set keyboard LED mode using asusctl
+#[allow(dead_code)]
 pub fn set_led_mode(settings: &RgbSettings) -> ArmouryResult<()> {
     let mode = match settings.effect {
         RgbEffect::Static => "static",
@@ -99,6 +101,7 @@ pub fn set_led_mode(settings: &RgbSettings) -> ArmouryResult<()> {
 }
 
 /// Set keyboard brightness using asusctl
+#[allow(dead_code)]
 pub fn set_kbd_brightness(brightness: u8) -> ArmouryResult<()> {
     // asusctl uses brightness levels 0-3
     let level = (brightness as u32 * 3 / 100).min(3);
@@ -117,6 +120,7 @@ pub fn set_kbd_brightness(brightness: u8) -> ArmouryResult<()> {
 }
 
 /// Set charge limit using asusctl
+#[allow(dead_code)]
 pub fn set_charge_limit(limit: u8) -> ArmouryResult<()> {
     let output = Command::new("asusctl")
         .args(["bios", "-c", &limit.to_string()])
