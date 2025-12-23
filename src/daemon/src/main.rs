@@ -77,6 +77,23 @@ async fn main() -> Result<()> {
 
     // Start D-Bus server
     info!("Starting D-Bus server...");
+    
+    // Clone state for the monitoring task
+    let monitor_state = state.clone();
+    
+    // Start system monitoring task
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            
+            // Update system status periodically
+            let state_guard = monitor_state.read().await;
+            let _status = state_guard.hardware.get_system_status();
+            // Status is now available for D-Bus queries
+        }
+    });
+    
+    // Run D-Bus server (blocks)
     dbus_server::run_server(state).await?;
 
     Ok(())
