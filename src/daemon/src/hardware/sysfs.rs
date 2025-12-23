@@ -3,12 +3,14 @@
 //! This module provides low-level access to ASUS hardware through the Linux sysfs interface.
 
 use asus_armoury_common::{ArmouryResult, ArmouryError, FanCurve, PerformanceMode, RgbSettings};
-use log::{debug, warn};
+use log::warn;
 use std::fs;
 use std::path::Path;
 
 // ASUS-specific sysfs paths
 const PLATFORM_PROFILE: &str = "/sys/firmware/acpi/platform_profile";
+// Used to query available performance profiles - planned for future use in capability detection
+#[allow(dead_code)]
 const PLATFORM_PROFILE_CHOICES: &str = "/sys/firmware/acpi/platform_profile_choices";
 const ASUS_WMI_PATH: &str = "/sys/devices/platform/asus-nb-wmi";
 const BATTERY_LIMIT_PATH: &str = "/sys/class/power_supply/BAT0/charge_control_end_threshold";

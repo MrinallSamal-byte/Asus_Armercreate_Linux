@@ -1,7 +1,7 @@
 //! Profile management for storing and loading user profiles
 
 use asus_armoury_common::{ArmouryResult, ArmouryError, Profile, PerformanceMode, GpuMode, FanMode};
-use log::{info, warn};
+use log::info;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;

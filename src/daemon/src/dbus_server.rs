@@ -2,12 +2,12 @@
 
 use asus_armoury_common::{
     dbus_interface::{DBUS_NAME, DBUS_PATH},
-    FanCurve, FanCurvePoint, GpuMode, PerformanceMode, RgbEffect, RgbSettings, SystemStatus,
+    FanCurve, GpuMode, PerformanceMode, RgbSettings,
 };
 use log::{error, info};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use zbus::{interface, Connection, ConnectionBuilder};
+use zbus::{interface, ConnectionBuilder};
 
 use crate::AppState;
 
@@ -307,7 +307,7 @@ impl ArmouryInterface {
 pub async fn run_server(state: Arc<RwLock<AppState>>) -> anyhow::Result<()> {
     let interface = ArmouryInterface::new(state);
     
-    let connection = ConnectionBuilder::system()?
+    let _connection = ConnectionBuilder::system()?
         .name(DBUS_NAME)?
         .serve_at(DBUS_PATH, interface)?
         .build()
