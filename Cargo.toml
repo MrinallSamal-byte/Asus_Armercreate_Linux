@@ -1,0 +1,27 @@
+[workspace]
+members = [
+    "src/daemon",
+    "src/gui",
+    "src/common",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["ASUS Armoury Crate Linux Contributors"]
+license = "GPL-3.0-or-later"
+repository = "https://github.com/MrinallSamal-byte/Asus_Armercreate_Linux"
+description = "Linux desktop application providing ASUS Armoury Crate functionality"
+
+[workspace.dependencies]
+tokio = { version = "1.34", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+anyhow = "1.0"
+log = "0.4"
+env_logger = "0.10"
+zbus = "4.0"
+config = "0.13"
+directories = "5.0"

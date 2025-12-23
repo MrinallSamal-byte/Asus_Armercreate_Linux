@@ -1,0 +1,23 @@
+[package]
+name = "asus-armoury-daemon"
+version.workspace = true
+edition.workspace = true
+description = "Background daemon for ASUS Armoury Crate Linux hardware control"
+license.workspace = true
+
+[[bin]]
+name = "asus-armoury-daemon"
+path = "src/main.rs"
+
+[dependencies]
+asus-armoury-common = { path = "../common" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+zbus = { workspace = true }
+config = { workspace = true }
+directories = { workspace = true }

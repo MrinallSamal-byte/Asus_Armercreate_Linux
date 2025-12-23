@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=ASUS Armoury Crate
+GenericName=Hardware Control
+Comment=Control ASUS laptop performance, fans, RGB lighting, and more
+Icon=asus-armoury
+Exec=asus-armoury-gui
+Terminal=false
+Categories=System;Settings;HardwareSettings;
+Keywords=ASUS;ROG;TUF;Armoury;Crate;Performance;Fan;RGB;Keyboard;
+StartupNotify=true
+X-GNOME-UsesNotifications=true

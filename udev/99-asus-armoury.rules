@@ -1,0 +1,25 @@
+# ASUS Armoury Crate Linux - udev rules for hardware access
+# Install to /etc/udev/rules.d/99-asus-armoury.rules
+
+# ASUS WMI platform device
+SUBSYSTEM=="platform", KERNEL=="asus-nb-wmi", TAG+="uaccess"
+
+# ASUS keyboard backlight
+SUBSYSTEM=="leds", KERNEL=="asus::kbd_backlight", TAG+="uaccess"
+SUBSYSTEM=="leds", KERNEL=="asus::lightbar", TAG+="uaccess"
+
+# Battery charge control
+SUBSYSTEM=="power_supply", ATTR{type}=="Battery", TAG+="uaccess"
+
+# ASUS HID devices (for RGB keyboards)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0b05", TAG+="uaccess"
+
+# Platform profile control
+SUBSYSTEM=="firmware", KERNEL=="acpi", TAG+="uaccess"
+
+# Fan control via hwmon
+SUBSYSTEM=="hwmon", ATTR{name}=="asus-nb-wmi", TAG+="uaccess"
+SUBSYSTEM=="hwmon", ATTR{name}=="asus_fan", TAG+="uaccess"
+
+# Thermal zones
+SUBSYSTEM=="thermal", TAG+="uaccess"
