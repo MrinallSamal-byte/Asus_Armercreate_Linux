@@ -3,16 +3,23 @@
 use gtk4::{glib, prelude::*, Application, Box, Label, Orientation};
 use libadwaita as adw;
 use adw::prelude::*;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
+use crate::dbus_client::DaemonClient;
 use crate::widgets;
 
 /// Main application window
 pub struct MainWindow {
     window: adw::ApplicationWindow,
+    client: Arc<Mutex<DaemonClient>>,
 }
 
 impl MainWindow {
     pub fn new(app: &Application) -> Self {
+        // Initialize D-Bus client
+        let client = Arc::new(Mutex::new(DaemonClient::default()));
+        
         // Create the main window
         let window = adw::ApplicationWindow::builder()
             .application(app)
@@ -60,7 +67,26 @@ impl MainWindow {
 
         window.set_content(Some(&main_box));
 
-        Self { window }
+        let window_obj = Self { 
+            window: window.clone(),
+            client: client.clone(),
+        };
+        
+        // Connect to daemon asynchronously
+        let client_clone = client.clone();
+        glib::MainContext::default().spawn_local(async move {
+            let mut client_guard = client_clone.lock().await;
+            *client_guard = DaemonClient::new().await;
+            
+            if !client_guard.is_connected() {
+                eprintln!("Warning: Could not connect to daemon. Some features may not work.");
+            }
+        });
+        
+        // Start periodic status updates
+        Self::start_status_updates(client, window.clone());
+
+        window_obj
     }
 
     fn create_sidebar() -> gtk4::Widget {
@@ -258,6 +284,24 @@ impl MainWindow {
         group.add(&rgb_row);
 
         group.upcast()
+    }
+    
+    fn start_status_updates(client: Arc<Mutex<DaemonClient>>, _window: adw::ApplicationWindow) {
+        // Schedule periodic updates every 2 seconds
+        glib::timeout_add_seconds_local(2, move || {
+            let client = client.clone();
+            glib::MainContext::default().spawn_local(async move {
+                let client_guard = client.lock().await;
+                if client_guard.is_connected() {
+                    // Fetch status from daemon
+                    if let Some(_status) = client_guard.get_system_status().await {
+                        // TODO: Update UI widgets with new status
+                        // This would require storing references to the UI widgets
+                    }
+                }
+            });
+            glib::ControlFlow::Continue
+        });
     }
 
     pub fn present(&self) {
