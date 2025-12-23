@@ -1,0 +1,24 @@
+[package]
+name = "asus-armoury-gui"
+version.workspace = true
+edition.workspace = true
+description = "GTK4 GUI for ASUS Armoury Crate Linux"
+license.workspace = true
+
+[[bin]]
+name = "asus-armoury-gui"
+path = "src/main.rs"
+
+[dependencies]
+asus-armoury-common = { path = "../common" }
+gtk4 = { version = "0.7", features = ["v4_10"] }
+libadwaita = { version = "0.5", features = ["v1_4"] }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+zbus = { workspace = true }
+directories = { workspace = true }

@@ -1,0 +1,12 @@
+[package]
+name = "asus-armoury-common"
+version.workspace = true
+edition.workspace = true
+description = "Common types and utilities for ASUS Armoury Crate Linux"
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }

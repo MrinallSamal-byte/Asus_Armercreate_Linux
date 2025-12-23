@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>ASUS Armoury Crate Linux</vendor>
+  <vendor_url>https://github.com/MrinallSamal-byte/Asus_Armercreate_Linux</vendor_url>
+
+  <action id="org.asuslinux.armoury.set-performance-mode">
+    <description>Set ASUS laptop performance mode</description>
+    <message>Authentication is required to change the performance mode</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.asuslinux.armoury.set-fan-curve">
+    <description>Set ASUS laptop fan curve</description>
+    <message>Authentication is required to change the fan curve</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.asuslinux.armoury.set-battery-limit">
+    <description>Set ASUS laptop battery charge limit</description>
+    <message>Authentication is required to change the battery charge limit</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.asuslinux.armoury.set-rgb">
+    <description>Set ASUS laptop keyboard RGB lighting</description>
+    <message>Authentication is required to change keyboard lighting</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.asuslinux.armoury.set-gpu-mode">
+    <description>Set ASUS laptop GPU mode</description>
+    <message>Authentication is required to change the GPU mode</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+</policyconfig>

@@ -1,0 +1,25 @@
+[Unit]
+Description=ASUS Armoury Crate Linux Daemon
+Documentation=https://github.com/MrinallSamal-byte/Asus_Armercreate_Linux
+After=multi-user.target
+Wants=dbus.service
+
+[Service]
+Type=dbus
+BusName=org.asuslinux.Armoury
+ExecStart=/usr/bin/asus-armoury-daemon
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=false
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/sys/devices/platform/asus-nb-wmi
+ReadWritePaths=/sys/class/power_supply
+ReadWritePaths=/sys/firmware/acpi
+ReadWritePaths=/sys/class/leds
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
