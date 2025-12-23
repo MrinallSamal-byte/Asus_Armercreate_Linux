@@ -52,37 +52,38 @@ impl HardwareController {
 
     /// Detect hardware capabilities
     fn detect_capabilities(sysfs: &SysfsInterface) -> HardwareCapabilities {
-        let mut caps = HardwareCapabilities::default();
-
-        // Detect model name
-        caps.model_name = sysfs.read_model_name();
-
         // Check for ASUS WMI interface
         let asus_wmi_exists = Path::new("/sys/devices/platform/asus-nb-wmi").exists();
         
-        if asus_wmi_exists {
+        let (performance_modes, fan_control, battery_limit, rgb_keyboard) = if asus_wmi_exists {
             info!("ASUS WMI interface detected");
             
-            // Check for platform_profile (performance modes)
-            caps.performance_modes = Path::new("/sys/firmware/acpi/platform_profile").exists();
-            
-            // Check for fan control
-            caps.fan_control = sysfs.has_fan_control();
-            
-            // Check for battery charge limit
-            caps.battery_limit = sysfs.has_battery_limit();
-            
-            // Check for keyboard backlight/RGB
-            caps.rgb_keyboard = sysfs.has_rgb_keyboard();
+            (
+                // Check for platform_profile (performance modes)
+                Path::new("/sys/firmware/acpi/platform_profile").exists(),
+                // Check for fan control
+                sysfs.has_fan_control(),
+                // Check for battery charge limit
+                sysfs.has_battery_limit(),
+                // Check for keyboard backlight/RGB
+                sysfs.has_rgb_keyboard(),
+            )
+        } else {
+            (false, false, false, false)
+        };
+
+        HardwareCapabilities {
+            model_name: sysfs.read_model_name(),
+            performance_modes,
+            fan_control,
+            battery_limit,
+            rgb_keyboard,
+            // Check for supergfxd (GPU switching)
+            gpu_switching: Self::check_supergfxd_available(),
+            // Check for anime matrix
+            anime_matrix: Path::new("/sys/devices/platform/asus-nb-wmi/anime_matrix").exists(),
+            ..Default::default()
         }
-
-        // Check for supergfxd (GPU switching)
-        caps.gpu_switching = Self::check_supergfxd_available();
-
-        // Check for anime matrix
-        caps.anime_matrix = Path::new("/sys/devices/platform/asus-nb-wmi/anime_matrix").exists();
-
-        caps
     }
 
     /// Check if supergfxd is available
