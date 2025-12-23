@@ -4,8 +4,7 @@ use asus_armoury_common::{
     ArmouryResult, FanCurve, GpuMode, HardwareCapabilities, PerformanceMode,
     RgbSettings, SystemStatus,
 };
-use log::{debug, info, warn};
-use std::fs;
+use log::info;
 use std::path::Path;
 
 mod sysfs;

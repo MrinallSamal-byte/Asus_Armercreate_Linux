@@ -2,9 +2,14 @@
 //!
 //! This module provides integration with the asusctl tool when available,
 //! offering additional features and better hardware support.
+//!
+//! Note: These functions are currently not used by the default hardware controller
+//! but are available for future integration when asusctl is configured as the
+//! preferred backend.
 
-use asus_armoury_common::{ArmouryResult, ArmouryError, PerformanceMode, RgbSettings, RgbEffect, RgbColor};
-use log::{debug, info, warn};
+#![allow(dead_code)]
+
+use asus_armoury_common::{ArmouryResult, ArmouryError, PerformanceMode, RgbSettings, RgbEffect};
 use std::process::Command;
 
 /// Check if asusctl is available on the system
