@@ -1,6 +1,8 @@
 //! Profile management for storing and loading user profiles
 
-use asus_armoury_common::{ArmouryResult, ArmouryError, Profile, PerformanceMode, GpuMode, FanMode};
+use asus_armoury_common::{
+    ArmouryError, ArmouryResult, FanMode, GpuMode, PerformanceMode, Profile,
+};
 use log::{info, warn};
 use std::collections::HashMap;
 use std::fs;
@@ -45,7 +47,10 @@ impl ProfileManager {
             ));
         }
 
-        if !trimmed.chars().all(|c| c.is_ascii_alphanumeric() || c == ' ' || c == '_' || c == '-') {
+        if !trimmed
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == ' ' || c == '_' || c == '-')
+        {
             return Err(ArmouryError::InvalidValue(
                 "Profile name may only contain letters, numbers, spaces, '_' or '-'".to_string(),
             ));
@@ -57,7 +62,7 @@ impl ProfileManager {
     /// Create a new profile manager
     pub fn new(config: &DaemonConfig) -> ArmouryResult<Self> {
         let profiles_dir = config.profiles_dir.clone();
-        
+
         // Ensure profiles directory exists
         if !profiles_dir.exists() {
             fs::create_dir_all(&profiles_dir)?;
@@ -166,7 +171,7 @@ impl ProfileManager {
         }
 
         let entries = fs::read_dir(&self.profiles_dir)?;
-        
+
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().map(|e| e == "json").unwrap_or(false) {
@@ -194,8 +199,9 @@ impl ProfileManager {
     fn save_profile_to_disk(&self, profile: &Profile) -> ArmouryResult<()> {
         let safe_name = Self::validate_profile_name(&profile.name)?;
         let path = self.profiles_dir.join(format!("{}.json", safe_name));
-        let content = serde_json::to_string_pretty(profile)
-            .map_err(|e| ArmouryError::ConfigError(format!("Failed to serialize profile: {}", e)))?;
+        let content = serde_json::to_string_pretty(profile).map_err(|e| {
+            ArmouryError::ConfigError(format!("Failed to serialize profile: {}", e))
+        })?;
         fs::write(&path, content)?;
         Ok(())
     }
@@ -238,7 +244,7 @@ impl ProfileManager {
         let default_profiles = ["Gaming", "Work", "Silent", "Balanced"];
         if default_profiles.contains(&safe_name) {
             return Err(ArmouryError::InvalidValue(
-                "Cannot delete default profiles".to_string()
+                "Cannot delete default profiles".to_string(),
             ));
         }
 
@@ -250,9 +256,10 @@ impl ProfileManager {
             info!("Deleted profile: {}", safe_name);
             Ok(())
         } else {
-            Err(ArmouryError::InvalidValue(
-                format!("Profile not found: {}", safe_name)
-            ))
+            Err(ArmouryError::InvalidValue(format!(
+                "Profile not found: {}",
+                safe_name
+            )))
         }
     }
 }

@@ -1,15 +1,15 @@
 //! Hardware abstraction layer for ASUS laptops
 
 use asus_armoury_common::{
-    ArmouryResult, FanCurve, GpuMode, HardwareCapabilities, PerformanceMode,
-    RgbSettings, SystemStatus,
+    ArmouryResult, FanCurve, GpuMode, HardwareCapabilities, PerformanceMode, RgbSettings,
+    SystemStatus,
 };
-use log::{debug, info, warn};
-use std::fs;
+use log::info;
 use std::path::Path;
 
-mod sysfs;
+#[allow(dead_code)]
 mod asusctl;
+mod sysfs;
 
 pub use sysfs::SysfsInterface;
 
@@ -30,9 +30,9 @@ impl HardwareController {
     pub fn new() -> ArmouryResult<Self> {
         let sysfs = SysfsInterface::new();
         let capabilities = Self::detect_capabilities(&sysfs);
-        
+
         info!("Hardware controller initialized");
-        
+
         Ok(Self {
             capabilities,
             sysfs,
@@ -53,26 +53,26 @@ impl HardwareController {
 
     /// Detect hardware capabilities
     fn detect_capabilities(sysfs: &SysfsInterface) -> HardwareCapabilities {
-        let mut caps = HardwareCapabilities::default();
-
-        // Detect model name
-        caps.model_name = sysfs.read_model_name();
+        let mut caps = HardwareCapabilities {
+            model_name: sysfs.read_model_name(),
+            ..HardwareCapabilities::default()
+        };
 
         // Check for ASUS WMI interface
         let asus_wmi_exists = Path::new("/sys/devices/platform/asus-nb-wmi").exists();
-        
+
         if asus_wmi_exists {
             info!("ASUS WMI interface detected");
-            
+
             // Check for platform_profile (performance modes)
             caps.performance_modes = Path::new("/sys/firmware/acpi/platform_profile").exists();
-            
+
             // Check for fan control
             caps.fan_control = sysfs.has_fan_control();
-            
+
             // Check for battery charge limit
             caps.battery_limit = sysfs.has_battery_limit();
-            
+
             // Check for keyboard backlight/RGB
             caps.rgb_keyboard = sysfs.has_rgb_keyboard();
         }
@@ -96,7 +96,8 @@ impl HardwareController {
 
     /// Get current performance mode
     pub fn get_performance_mode(&self) -> PerformanceMode {
-        self.sysfs.read_platform_profile()
+        self.sysfs
+            .read_platform_profile()
             .unwrap_or(self.current_performance_mode)
     }
 
@@ -104,7 +105,7 @@ impl HardwareController {
     pub fn set_performance_mode(&mut self, mode: PerformanceMode) -> ArmouryResult<()> {
         if !self.capabilities.performance_modes {
             return Err(asus_armoury_common::ArmouryError::FeatureNotAvailable(
-                "Performance modes not supported on this hardware".to_string()
+                "Performance modes not supported on this hardware".to_string(),
             ));
         }
 
@@ -125,7 +126,7 @@ impl HardwareController {
     pub fn set_gpu_mode(&mut self, mode: GpuMode) -> ArmouryResult<()> {
         if !self.capabilities.gpu_switching {
             return Err(asus_armoury_common::ArmouryError::FeatureNotAvailable(
-                "GPU switching not supported (supergfxctl not found)".to_string()
+                "GPU switching not supported (supergfxctl not found)".to_string(),
             ));
         }
 
@@ -149,15 +150,15 @@ impl HardwareController {
             }
             Ok(out) => {
                 let stderr = String::from_utf8_lossy(&out.stderr);
-                Err(asus_armoury_common::ArmouryError::HardwareError(
-                    format!("Failed to set GPU mode: {}", stderr)
-                ))
+                Err(asus_armoury_common::ArmouryError::HardwareError(format!(
+                    "Failed to set GPU mode: {}",
+                    stderr
+                )))
             }
-            Err(e) => {
-                Err(asus_armoury_common::ArmouryError::HardwareError(
-                    format!("Failed to execute supergfxctl: {}", e)
-                ))
-            }
+            Err(e) => Err(asus_armoury_common::ArmouryError::HardwareError(format!(
+                "Failed to execute supergfxctl: {}",
+                e
+            ))),
         }
     }
 
@@ -172,7 +173,7 @@ impl HardwareController {
     pub fn set_fan_curve(&mut self, curve: &FanCurve) -> ArmouryResult<()> {
         if !self.capabilities.fan_control {
             return Err(asus_armoury_common::ArmouryError::FeatureNotAvailable(
-                "Fan control not supported on this hardware".to_string()
+                "Fan control not supported on this hardware".to_string(),
             ));
         }
 
@@ -185,7 +186,7 @@ impl HardwareController {
     pub fn reset_fan_auto(&mut self) -> ArmouryResult<()> {
         if !self.capabilities.fan_control {
             return Err(asus_armoury_common::ArmouryError::FeatureNotAvailable(
-                "Fan control not supported on this hardware".to_string()
+                "Fan control not supported on this hardware".to_string(),
             ));
         }
 
@@ -213,12 +214,15 @@ impl HardwareController {
     pub fn set_rgb_settings(&mut self, settings: &RgbSettings) -> ArmouryResult<()> {
         if !self.capabilities.rgb_keyboard {
             return Err(asus_armoury_common::ArmouryError::FeatureNotAvailable(
-                "RGB keyboard not supported on this hardware".to_string()
+                "RGB keyboard not supported on this hardware".to_string(),
             ));
         }
 
         self.sysfs.write_rgb_settings(settings)?;
-        info!("RGB settings applied: effect={}, brightness={}", settings.effect, settings.brightness);
+        info!(
+            "RGB settings applied: effect={}, brightness={}",
+            settings.effect, settings.brightness
+        );
         Ok(())
     }
 
@@ -233,16 +237,17 @@ impl HardwareController {
     pub fn set_battery_limit(&mut self, limit: u8) -> ArmouryResult<()> {
         if !self.capabilities.battery_limit {
             return Err(asus_armoury_common::ArmouryError::FeatureNotAvailable(
-                "Battery charge limit not supported on this hardware".to_string()
+                "Battery charge limit not supported on this hardware".to_string(),
             ));
         }
 
         // Validate limit
         let valid_limits = [60, 80, 100];
         if !valid_limits.contains(&limit) {
-            return Err(asus_armoury_common::ArmouryError::InvalidValue(
-                format!("Invalid battery limit: {}. Valid values: 60, 80, 100", limit)
-            ));
+            return Err(asus_armoury_common::ArmouryError::InvalidValue(format!(
+                "Invalid battery limit: {}. Valid values: 60, 80, 100",
+                limit
+            )));
         }
 
         self.sysfs.write_battery_limit(limit)?;

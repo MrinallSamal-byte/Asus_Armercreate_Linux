@@ -8,8 +8,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 mod config;
-mod hardware;
 mod dbus_server;
+mod hardware;
 mod profiles;
 
 use config::DaemonConfig;
@@ -40,9 +40,7 @@ impl AppState {
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize logging
-    env_logger::Builder::from_env(
-        env_logger::Env::default().default_filter_or("info")
-    ).init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     info!("ASUS Armoury Crate Linux Daemon starting...");
 
@@ -77,22 +75,22 @@ async fn main() -> Result<()> {
 
     // Start D-Bus server
     info!("Starting D-Bus server...");
-    
+
     // Clone state for the monitoring task
     let monitor_state = state.clone();
-    
+
     // Start system monitoring task
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-            
+
             // Update system status periodically
             let state_guard = monitor_state.read().await;
             let _status = state_guard.hardware.get_system_status();
             // Status is now available for D-Bus queries
         }
     });
-    
+
     // Run D-Bus server (blocks)
     dbus_server::run_server(state).await?;
 

@@ -2,14 +2,13 @@
 //!
 //! This module provides low-level access to ASUS hardware through the Linux sysfs interface.
 
-use asus_armoury_common::{ArmouryResult, ArmouryError, FanCurve, PerformanceMode, RgbSettings};
-use log::{debug, warn};
+use asus_armoury_common::{ArmouryError, ArmouryResult, FanCurve, PerformanceMode, RgbSettings};
+use log::warn;
 use std::fs;
 use std::path::Path;
 
 // ASUS-specific sysfs paths
 const PLATFORM_PROFILE: &str = "/sys/firmware/acpi/platform_profile";
-const PLATFORM_PROFILE_CHOICES: &str = "/sys/firmware/acpi/platform_profile_choices";
 const ASUS_WMI_PATH: &str = "/sys/devices/platform/asus-nb-wmi";
 const BATTERY_LIMIT_PATH: &str = "/sys/class/power_supply/BAT0/charge_control_end_threshold";
 const BATTERY_LIMIT_PATH_ALT: &str = "/sys/class/power_supply/BAT1/charge_control_end_threshold";
@@ -49,7 +48,7 @@ impl SysfsInterface {
                 return Some(name);
             }
         }
-        
+
         // Try ASUS WMI
         let wmi_path = format!("{}/product_name", ASUS_WMI_PATH);
         if let Ok(name) = fs::read_to_string(&wmi_path) {
@@ -100,7 +99,7 @@ impl SysfsInterface {
     pub fn read_platform_profile(&self) -> Option<PerformanceMode> {
         let content = fs::read_to_string(PLATFORM_PROFILE).ok()?;
         let profile = content.trim();
-        
+
         match profile {
             "quiet" | "silent" => Some(PerformanceMode::Silent),
             "balanced" | "balanced-performance" => Some(PerformanceMode::Balanced),
@@ -123,7 +122,9 @@ impl SysfsInterface {
 
         fs::write(PLATFORM_PROFILE, profile).map_err(|e| {
             if e.kind() == std::io::ErrorKind::PermissionDenied {
-                ArmouryError::PermissionDenied("Cannot write platform profile (root required)".to_string())
+                ArmouryError::PermissionDenied(
+                    "Cannot write platform profile (root required)".to_string(),
+                )
             } else {
                 ArmouryError::IoError(e)
             }
@@ -144,10 +145,13 @@ impl SysfsInterface {
         for i in 0..20 {
             let type_path = format!("{}{}/type", THERMAL_ZONE_BASE, i);
             let temp_path = format!("{}{}/temp", THERMAL_ZONE_BASE, i);
-            
+
             if let Ok(zone_type) = fs::read_to_string(&type_path) {
                 let zone_type = zone_type.trim().to_lowercase();
-                if zone_type.contains("cpu") || zone_type.contains("x86_pkg") || zone_type == "acpitz" {
+                if zone_type.contains("cpu")
+                    || zone_type.contains("x86_pkg")
+                    || zone_type == "acpitz"
+                {
                     if let Ok(temp_str) = fs::read_to_string(&temp_path) {
                         if let Ok(temp) = temp_str.trim().parse::<f32>() {
                             return Some(temp / 1000.0); // Convert from millidegrees
@@ -183,7 +187,7 @@ impl SysfsInterface {
         for i in 0..20 {
             let type_path = format!("{}{}/type", THERMAL_ZONE_BASE, i);
             let temp_path = format!("{}{}/temp", THERMAL_ZONE_BASE, i);
-            
+
             if let Ok(zone_type) = fs::read_to_string(&type_path) {
                 let zone_type = zone_type.trim().to_lowercase();
                 if zone_type.contains("gpu") || zone_type.contains("amdgpu") {
@@ -223,16 +227,17 @@ impl SysfsInterface {
     /// Write fan curve to hardware
     pub fn write_fan_curve(&self, curve: &FanCurve) -> ArmouryResult<()> {
         let fan_curve_path = format!("{}/fan_curve", ASUS_WMI_PATH);
-        
+
         if !Path::new(&fan_curve_path).exists() {
             return Err(ArmouryError::FeatureNotAvailable(
-                "Fan curve control not available".to_string()
+                "Fan curve control not available".to_string(),
             ));
         }
 
         // Format fan curve for ASUS WMI
         // Format: temp1:speed1,temp2:speed2,...
-        let curve_str: String = curve.points
+        let curve_str: String = curve
+            .points
             .iter()
             .map(|p| format!("{}:{}", p.temperature, p.fan_percent))
             .collect::<Vec<_>>()
@@ -250,11 +255,13 @@ impl SysfsInterface {
     /// Reset fan to automatic control
     pub fn reset_fan_auto(&self) -> ArmouryResult<()> {
         let fan_curve_path = format!("{}/fan_curve", ASUS_WMI_PATH);
-        
+
         if Path::new(&fan_curve_path).exists() {
             fs::write(&fan_curve_path, "auto").map_err(|e| {
                 if e.kind() == std::io::ErrorKind::PermissionDenied {
-                    ArmouryError::PermissionDenied("Cannot reset fan control (root required)".to_string())
+                    ArmouryError::PermissionDenied(
+                        "Cannot reset fan control (root required)".to_string(),
+                    )
                 } else {
                     ArmouryError::IoError(e)
                 }
@@ -275,7 +282,9 @@ impl SysfsInterface {
             let brightness_value = (settings.brightness as u32 * 3 / 100).min(3);
             fs::write(kbd_backlight, brightness_value.to_string()).map_err(|e| {
                 if e.kind() == std::io::ErrorKind::PermissionDenied {
-                    ArmouryError::PermissionDenied("Cannot write keyboard brightness (root required)".to_string())
+                    ArmouryError::PermissionDenied(
+                        "Cannot write keyboard brightness (root required)".to_string(),
+                    )
                 } else {
                     ArmouryError::IoError(e)
                 }
@@ -299,14 +308,15 @@ impl SysfsInterface {
 
     /// Write battery charge limit
     pub fn write_battery_limit(&self, limit: u8) -> ArmouryResult<()> {
-        let path = self.battery_limit_path.as_ref()
-            .ok_or_else(|| ArmouryError::FeatureNotAvailable(
-                "Battery charge limit not available".to_string()
-            ))?;
+        let path = self.battery_limit_path.as_ref().ok_or_else(|| {
+            ArmouryError::FeatureNotAvailable("Battery charge limit not available".to_string())
+        })?;
 
         fs::write(path, limit.to_string()).map_err(|e| {
             if e.kind() == std::io::ErrorKind::PermissionDenied {
-                ArmouryError::PermissionDenied("Cannot write battery limit (root required)".to_string())
+                ArmouryError::PermissionDenied(
+                    "Cannot write battery limit (root required)".to_string(),
+                )
             } else {
                 ArmouryError::IoError(e)
             }
@@ -346,12 +356,12 @@ impl SysfsInterface {
         // Read load average as simple CPU usage indicator
         let loadavg = fs::read_to_string("/proc/loadavg").ok()?;
         let load: f32 = loadavg.split_whitespace().next()?.parse().ok()?;
-        
+
         // Get number of CPUs
         let cpus = std::thread::available_parallelism()
             .map(|n| n.get() as f32)
             .unwrap_or(1.0);
-        
+
         // Convert load to percentage (capped at 100%)
         Some((load / cpus * 100.0).min(100.0))
     }
@@ -390,10 +400,11 @@ impl SysfsInterface {
 
         // Try energy_now approach
         if let Ok(energy_str) = fs::read_to_string("/sys/class/power_supply/BAT0/energy_now") {
-            if let Ok(voltage_str) = fs::read_to_string("/sys/class/power_supply/BAT0/voltage_now") {
+            if let Ok(voltage_str) = fs::read_to_string("/sys/class/power_supply/BAT0/voltage_now")
+            {
                 if let (Ok(energy), Ok(voltage)) = (
                     energy_str.trim().parse::<f64>(),
-                    voltage_str.trim().parse::<f64>()
+                    voltage_str.trim().parse::<f64>(),
                 ) {
                     // This is approximate - actual power draw requires time delta
                     return ((energy * voltage) / 1e12) as f32;

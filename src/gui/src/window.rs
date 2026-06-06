@@ -1,8 +1,8 @@
 //! Main application window
 
+use adw::prelude::*;
 use gtk4::{glib, prelude::*, Application, Box, Label, Orientation};
 use libadwaita as adw;
-use adw::prelude::*;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -19,7 +19,7 @@ impl MainWindow {
     pub fn new(app: &Application) -> Self {
         // Initialize D-Bus client
         let client = Arc::new(Mutex::new(DaemonClient::default()));
-        
+
         // Create the main window
         let window = adw::ApplicationWindow::builder()
             .application(app)
@@ -30,20 +30,19 @@ impl MainWindow {
 
         // Create header bar
         let header = adw::HeaderBar::new();
-        
+
         // Add profile selector to header
-        let profile_dropdown = gtk4::DropDown::from_strings(&[
-            "Gaming", "Work", "Silent", "Balanced"
-        ]);
+        let profile_dropdown =
+            gtk4::DropDown::from_strings(&["Gaming", "Work", "Silent", "Balanced"]);
         profile_dropdown.set_tooltip_text(Some("Select Profile"));
         header.pack_start(&profile_dropdown);
 
         // Create navigation view with pages
         let nav_view = adw::NavigationView::new();
-        
+
         // Create main content with sidebar navigation
         let split_view = adw::NavigationSplitView::new();
-        
+
         // Create sidebar
         let sidebar_content = Self::create_sidebar();
         let sidebar_page = adw::NavigationPage::builder()
@@ -51,7 +50,7 @@ impl MainWindow {
             .child(&sidebar_content)
             .build();
         split_view.set_sidebar(Some(&sidebar_page));
-        
+
         // Create main content
         let content = Self::create_content();
         let content_page = adw::NavigationPage::builder()
@@ -67,22 +66,22 @@ impl MainWindow {
 
         window.set_content(Some(&main_box));
 
-        let window_obj = Self { 
+        let window_obj = Self {
             window: window.clone(),
             client: client.clone(),
         };
-        
+
         // Connect to daemon asynchronously
         let client_clone = client.clone();
         glib::MainContext::default().spawn_local(async move {
             let mut client_guard = client_clone.lock().await;
             *client_guard = DaemonClient::new().await;
-            
+
             if !client_guard.is_connected() {
                 eprintln!("Warning: Could not connect to daemon. Some features may not work.");
             }
         });
-        
+
         // Start periodic status updates
         Self::start_status_updates(client, window.clone());
 
@@ -119,7 +118,7 @@ impl MainWindow {
 
     fn create_nav_row(icon_name: &str, label_text: &str) -> gtk4::ListBoxRow {
         let row = gtk4::ListBoxRow::new();
-        
+
         let hbox = Box::new(Orientation::Horizontal, 12);
         hbox.set_margin_top(8);
         hbox.set_margin_bottom(8);
@@ -128,10 +127,10 @@ impl MainWindow {
 
         let icon = gtk4::Image::from_icon_name(icon_name);
         let label = Label::new(Some(label_text));
-        
+
         hbox.append(&icon);
         hbox.append(&label);
-        
+
         row.set_child(Some(&hbox));
         row
     }
@@ -251,7 +250,7 @@ impl MainWindow {
         perf_row.set_title("Performance Mode");
         perf_row.set_subtitle("CPU and system performance profile");
         perf_row.set_model(Some(&gtk4::StringList::new(&[
-            "Silent", "Balanced", "Turbo", "Manual"
+            "Silent", "Balanced", "Turbo", "Manual",
         ])));
         perf_row.set_selected(1); // Balanced
         group.add(&perf_row);
@@ -261,7 +260,9 @@ impl MainWindow {
         gpu_row.set_title("GPU Mode");
         gpu_row.set_subtitle("Graphics switching mode");
         gpu_row.set_model(Some(&gtk4::StringList::new(&[
-            "Integrated", "Hybrid", "Dedicated"
+            "Integrated",
+            "Hybrid",
+            "Dedicated",
         ])));
         gpu_row.set_selected(1); // Hybrid
         group.add(&gpu_row);
@@ -270,9 +271,7 @@ impl MainWindow {
         let battery_row = adw::ComboRow::new();
         battery_row.set_title("Battery Charge Limit");
         battery_row.set_subtitle("Maximum battery charge percentage");
-        battery_row.set_model(Some(&gtk4::StringList::new(&[
-            "60%", "80%", "100%"
-        ])));
+        battery_row.set_model(Some(&gtk4::StringList::new(&["60%", "80%", "100%"])));
         battery_row.set_selected(2); // 100%
         group.add(&battery_row);
 
@@ -285,7 +284,7 @@ impl MainWindow {
 
         group.upcast()
     }
-    
+
     fn start_status_updates(client: Arc<Mutex<DaemonClient>>, _window: adw::ApplicationWindow) {
         // Schedule periodic updates every 2 seconds
         glib::timeout_add_seconds_local(2, move || {

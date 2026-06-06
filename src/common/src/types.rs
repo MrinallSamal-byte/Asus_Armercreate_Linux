@@ -3,22 +3,17 @@
 use serde::{Deserialize, Serialize};
 
 /// CPU Performance modes available on ASUS laptops
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum PerformanceMode {
     /// Silent mode - prioritizes low noise and temperatures
     Silent,
     /// Balanced mode - default mode balancing performance and thermals
+    #[default]
     Balanced,
     /// Turbo/Performance mode - maximum performance
     Turbo,
     /// Manual mode - user-defined settings
     Manual,
-}
-
-impl Default for PerformanceMode {
-    fn default() -> Self {
-        Self::Balanced
-    }
 }
 
 impl std::fmt::Display for PerformanceMode {
@@ -33,22 +28,17 @@ impl std::fmt::Display for PerformanceMode {
 }
 
 /// GPU operation modes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum GpuMode {
     /// Use integrated graphics only
     Integrated,
     /// Use dedicated GPU only
     Dedicated,
     /// Hybrid mode - automatic switching
+    #[default]
     Hybrid,
     /// Compute mode - GPU available but no display output
     Compute,
-}
-
-impl Default for GpuMode {
-    fn default() -> Self {
-        Self::Hybrid
-    }
 }
 
 impl std::fmt::Display for GpuMode {
@@ -63,18 +53,13 @@ impl std::fmt::Display for GpuMode {
 }
 
 /// Fan control mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum FanMode {
     /// Automatic fan control based on temperature
+    #[default]
     Auto,
     /// Manual fan curve
     Manual,
-}
-
-impl Default for FanMode {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 /// A point in a fan curve (temperature -> fan percentage)
@@ -100,22 +85,44 @@ impl Default for FanCurve {
         Self {
             name: "Default".to_string(),
             points: vec![
-                FanCurvePoint { temperature: 30, fan_percent: 0 },
-                FanCurvePoint { temperature: 40, fan_percent: 20 },
-                FanCurvePoint { temperature: 50, fan_percent: 35 },
-                FanCurvePoint { temperature: 60, fan_percent: 50 },
-                FanCurvePoint { temperature: 70, fan_percent: 70 },
-                FanCurvePoint { temperature: 80, fan_percent: 85 },
-                FanCurvePoint { temperature: 90, fan_percent: 100 },
+                FanCurvePoint {
+                    temperature: 30,
+                    fan_percent: 0,
+                },
+                FanCurvePoint {
+                    temperature: 40,
+                    fan_percent: 20,
+                },
+                FanCurvePoint {
+                    temperature: 50,
+                    fan_percent: 35,
+                },
+                FanCurvePoint {
+                    temperature: 60,
+                    fan_percent: 50,
+                },
+                FanCurvePoint {
+                    temperature: 70,
+                    fan_percent: 70,
+                },
+                FanCurvePoint {
+                    temperature: 80,
+                    fan_percent: 85,
+                },
+                FanCurvePoint {
+                    temperature: 90,
+                    fan_percent: 100,
+                },
             ],
         }
     }
 }
 
 /// RGB lighting effects
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum RgbEffect {
     /// Static single color
+    #[default]
     Static,
     /// Breathing/pulsing effect
     Breathing,
@@ -129,12 +136,6 @@ pub enum RgbEffect {
     Reactive,
     /// Off
     Off,
-}
-
-impl Default for RgbEffect {
-    fn default() -> Self {
-        Self::Static
-    }
 }
 
 impl std::fmt::Display for RgbEffect {
@@ -216,9 +217,7 @@ pub struct BatterySettings {
 
 impl Default for BatterySettings {
     fn default() -> Self {
-        Self {
-            charge_limit: 100,
-        }
+        Self { charge_limit: 100 }
     }
 }
 

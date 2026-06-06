@@ -7,7 +7,7 @@ use asus_armoury_common::{
 use log::{error, info};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use zbus::{interface, Connection, ConnectionBuilder};
+use zbus::{interface, ConnectionBuilder};
 
 use crate::AppState;
 
@@ -60,7 +60,7 @@ impl ArmouryInterface {
             "manual" => PerformanceMode::Manual,
             _ => return false,
         };
-        
+
         match state.hardware.set_performance_mode(mode) {
             Ok(()) => true,
             Err(e) => {
@@ -88,7 +88,7 @@ impl ArmouryInterface {
             "compute" => GpuMode::Compute,
             _ => return false,
         };
-        
+
         match state.hardware.set_gpu_mode(mode) {
             Ok(()) => true,
             Err(e) => {
@@ -110,7 +110,7 @@ impl ArmouryInterface {
     /// Set fan curve from JSON
     async fn set_fan_curve(&self, curve_json: &str) -> bool {
         let mut state = self.state.write().await;
-        
+
         let curve: FanCurve = match serde_json::from_str(curve_json) {
             Ok(c) => c,
             Err(e) => {
@@ -118,7 +118,7 @@ impl ArmouryInterface {
                 return false;
             }
         };
-        
+
         match state.hardware.set_fan_curve(&curve) {
             Ok(()) => true,
             Err(e) => {
@@ -161,7 +161,7 @@ impl ArmouryInterface {
     /// Set RGB settings from JSON
     async fn set_rgb_settings(&self, settings_json: &str) -> bool {
         let mut state = self.state.write().await;
-        
+
         let settings: RgbSettings = match serde_json::from_str(settings_json) {
             Ok(s) => s,
             Err(e) => {
@@ -169,7 +169,7 @@ impl ArmouryInterface {
                 return false;
             }
         };
-        
+
         match state.hardware.set_rgb_settings(&settings) {
             Ok(()) => true,
             Err(e) => {
@@ -204,7 +204,9 @@ impl ArmouryInterface {
     /// List available profiles
     async fn list_profiles(&self) -> String {
         let state = self.state.read().await;
-        let profiles: Vec<String> = state.profiles.list_profiles()
+        let profiles: Vec<String> = state
+            .profiles
+            .list_profiles()
             .iter()
             .map(|p| p.name.clone())
             .collect();
@@ -229,7 +231,7 @@ impl ArmouryInterface {
     /// Apply profile by name
     async fn apply_profile(&self, name: &str) -> bool {
         let mut state = self.state.write().await;
-        
+
         let profile = match state.profiles.get_profile(name) {
             Some(p) => p.clone(),
             None => {
@@ -241,7 +243,10 @@ impl ArmouryInterface {
         // Apply all settings from the profile
         let mut success = true;
 
-        if let Err(e) = state.hardware.set_performance_mode(profile.performance_mode) {
+        if let Err(e) = state
+            .hardware
+            .set_performance_mode(profile.performance_mode)
+        {
             error!("Failed to set performance mode: {}", e);
             success = false;
         }
@@ -256,7 +261,10 @@ impl ArmouryInterface {
             // Don't fail completely if RGB fails
         }
 
-        if let Err(e) = state.hardware.set_battery_limit(profile.battery_settings.charge_limit) {
+        if let Err(e) = state
+            .hardware
+            .set_battery_limit(profile.battery_settings.charge_limit)
+        {
             error!("Failed to set battery limit: {}", e);
             // Don't fail completely if battery limit fails
         }
@@ -273,7 +281,10 @@ impl ArmouryInterface {
                         error!("Failed to set fan curve: {}", e);
                     }
                 } else {
-                    error!("Profile '{}' is manual fan mode but has no fan curve", profile.name);
+                    error!(
+                        "Profile '{}' is manual fan mode but has no fan curve",
+                        profile.name
+                    );
                     success = false;
                 }
             }
@@ -289,7 +300,7 @@ impl ArmouryInterface {
     /// Save profile from JSON
     async fn save_profile(&self, profile_json: &str) -> bool {
         let mut state = self.state.write().await;
-        
+
         let profile = match serde_json::from_str(profile_json) {
             Ok(p) => p,
             Err(e) => {
@@ -297,7 +308,7 @@ impl ArmouryInterface {
                 return false;
             }
         };
-        
+
         match state.profiles.save_profile(profile) {
             Ok(()) => true,
             Err(e) => {
@@ -323,8 +334,8 @@ impl ArmouryInterface {
 /// Run the D-Bus server
 pub async fn run_server(state: Arc<RwLock<AppState>>) -> anyhow::Result<()> {
     let interface = ArmouryInterface::new(state);
-    
-    let connection = ConnectionBuilder::system()?
+
+    let _connection = ConnectionBuilder::system()?
         .name(DBUS_NAME)?
         .serve_at(DBUS_PATH, interface)?
         .build()

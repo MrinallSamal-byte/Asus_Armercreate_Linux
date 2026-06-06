@@ -6,9 +6,9 @@ use gtk4::{glib, prelude::*, Application};
 use libadwaita as adw;
 use log::info;
 
-mod window;
 mod dbus_client;
 mod widgets;
+mod window;
 
 use window::MainWindow;
 
@@ -16,9 +16,7 @@ const APP_ID: &str = "org.asuslinux.ArmouryGui";
 
 fn main() -> glib::ExitCode {
     // Initialize logging
-    env_logger::Builder::from_env(
-        env_logger::Env::default().default_filter_or("info")
-    ).init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     info!("ASUS Armoury Crate Linux GUI starting...");
 
@@ -26,9 +24,7 @@ fn main() -> glib::ExitCode {
     adw::init().expect("Failed to initialize libadwaita");
 
     // Create application
-    let app = Application::builder()
-        .application_id(APP_ID)
-        .build();
+    let app = Application::builder().application_id(APP_ID).build();
 
     app.connect_activate(build_ui);
 

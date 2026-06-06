@@ -1,8 +1,6 @@
 //! D-Bus client for communicating with the daemon
 
-use asus_armoury_common::{
-    HardwareCapabilities, RgbSettings, SystemStatus,
-};
+use asus_armoury_common::{HardwareCapabilities, RgbSettings, SystemStatus};
 use log::{error, info};
 use zbus::{proxy, Connection, Result};
 
@@ -16,25 +14,25 @@ trait Armoury {
     fn version(&self) -> Result<String>;
     fn get_capabilities(&self) -> Result<String>;
     fn get_system_status(&self) -> Result<String>;
-    
+
     fn get_performance_mode(&self) -> Result<String>;
     fn set_performance_mode(&self, mode: &str) -> Result<bool>;
-    
+
     fn get_gpu_mode(&self) -> Result<String>;
     fn set_gpu_mode(&self, mode: &str) -> Result<bool>;
-    
+
     fn get_fan_speeds(&self) -> Result<String>;
     fn set_fan_curve(&self, curve_json: &str) -> Result<bool>;
     fn reset_fan_auto(&self) -> Result<bool>;
-    
+
     fn get_temperatures(&self) -> Result<String>;
-    
+
     fn get_rgb_settings(&self) -> Result<String>;
     fn set_rgb_settings(&self, settings_json: &str) -> Result<bool>;
-    
+
     fn get_battery_limit(&self) -> Result<u8>;
     fn set_battery_limit(&self, limit: u8) -> Result<bool>;
-    
+
     fn list_profiles(&self) -> Result<String>;
     fn get_current_profile(&self) -> Result<String>;
     fn get_profile(&self, name: &str) -> Result<String>;
@@ -52,20 +50,18 @@ impl DaemonClient {
     /// Create a new daemon client
     pub async fn new() -> Self {
         match Connection::system().await {
-            Ok(conn) => {
-                match ArmouryProxy::new(&conn).await {
-                    Ok(_) => {
-                        info!("Connected to daemon");
-                        Self {
-                            connection: Some(conn),
-                        }
-                    }
-                    Err(e) => {
-                        error!("Failed to create proxy: {}", e);
-                        Self { connection: None }
+            Ok(conn) => match ArmouryProxy::new(&conn).await {
+                Ok(_) => {
+                    info!("Connected to daemon");
+                    Self {
+                        connection: Some(conn),
                     }
                 }
-            }
+                Err(e) => {
+                    error!("Failed to create proxy: {}", e);
+                    Self { connection: None }
+                }
+            },
             Err(e) => {
                 error!("Failed to connect to D-Bus: {}", e);
                 Self { connection: None }

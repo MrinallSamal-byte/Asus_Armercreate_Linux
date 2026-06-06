@@ -40,7 +40,7 @@ impl DaemonConfig {
     /// Load configuration from file or create default
     pub fn load() -> Result<Self> {
         let config_path = Self::config_file_path();
-        
+
         if config_path.exists() {
             let content = fs::read_to_string(&config_path)?;
             let config: DaemonConfig = serde_json::from_str(&content)?;
@@ -55,7 +55,7 @@ impl DaemonConfig {
     /// Save configuration to file
     pub fn save(&self) -> Result<()> {
         let config_path = Self::config_file_path();
-        
+
         // Ensure parent directory exists
         if let Some(parent) = config_path.parent() {
             fs::create_dir_all(parent)?;

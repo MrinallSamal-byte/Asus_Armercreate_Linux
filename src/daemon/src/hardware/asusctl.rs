@@ -3,8 +3,7 @@
 //! This module provides integration with the asusctl tool when available,
 //! offering additional features and better hardware support.
 
-use asus_armoury_common::{ArmouryResult, ArmouryError, PerformanceMode, RgbSettings, RgbEffect, RgbColor};
-use log::{debug, info, warn};
+use asus_armoury_common::{ArmouryError, ArmouryResult, PerformanceMode, RgbEffect, RgbSettings};
 use std::process::Command;
 
 /// Check if asusctl is available on the system
@@ -34,7 +33,10 @@ pub fn set_profile(mode: PerformanceMode) -> ArmouryResult<()> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(ArmouryError::HardwareError(format!("asusctl failed: {}", stderr)))
+        Err(ArmouryError::HardwareError(format!(
+            "asusctl failed: {}",
+            stderr
+        )))
     }
 }
 
@@ -48,7 +50,7 @@ pub fn get_profile() -> Option<PerformanceMode> {
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let profile = stdout.trim().to_lowercase();
-        
+
         match profile.as_str() {
             s if s.contains("quiet") => Some(PerformanceMode::Silent),
             s if s.contains("balanced") => Some(PerformanceMode::Balanced),
@@ -73,10 +75,13 @@ pub fn set_led_mode(settings: &RgbSettings) -> ArmouryResult<()> {
     };
 
     let mut args = vec!["led-mode", "-s", mode];
-    
+
     // Add color if applicable
     let color_hex = settings.color.to_hex();
-    if matches!(settings.effect, RgbEffect::Static | RgbEffect::Breathing | RgbEffect::Reactive) {
+    if matches!(
+        settings.effect,
+        RgbEffect::Static | RgbEffect::Breathing | RgbEffect::Reactive
+    ) {
         args.extend(["-c", &color_hex]);
     }
 
@@ -89,7 +94,10 @@ pub fn set_led_mode(settings: &RgbSettings) -> ArmouryResult<()> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(ArmouryError::HardwareError(format!("asusctl led-mode failed: {}", stderr)))
+        Err(ArmouryError::HardwareError(format!(
+            "asusctl led-mode failed: {}",
+            stderr
+        )))
     }
 }
 
@@ -97,7 +105,7 @@ pub fn set_led_mode(settings: &RgbSettings) -> ArmouryResult<()> {
 pub fn set_kbd_brightness(brightness: u8) -> ArmouryResult<()> {
     // asusctl uses brightness levels 0-3
     let level = (brightness as u32 * 3 / 100).min(3);
-    
+
     let output = Command::new("asusctl")
         .args(["led-mode", "-b", &level.to_string()])
         .output()
@@ -107,7 +115,10 @@ pub fn set_kbd_brightness(brightness: u8) -> ArmouryResult<()> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(ArmouryError::HardwareError(format!("asusctl brightness failed: {}", stderr)))
+        Err(ArmouryError::HardwareError(format!(
+            "asusctl brightness failed: {}",
+            stderr
+        )))
     }
 }
 
@@ -122,6 +133,9 @@ pub fn set_charge_limit(limit: u8) -> ArmouryResult<()> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(ArmouryError::HardwareError(format!("asusctl charge limit failed: {}", stderr)))
+        Err(ArmouryError::HardwareError(format!(
+            "asusctl charge limit failed: {}",
+            stderr
+        )))
     }
 }
