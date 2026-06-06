@@ -31,6 +31,29 @@ impl Default for ProfileManager {
 }
 
 impl ProfileManager {
+    fn validate_profile_name(name: &str) -> ArmouryResult<&str> {
+        let trimmed = name.trim();
+        if trimmed.is_empty() {
+            return Err(ArmouryError::InvalidValue(
+                "Profile name cannot be empty".to_string(),
+            ));
+        }
+
+        if trimmed.len() > 64 {
+            return Err(ArmouryError::InvalidValue(
+                "Profile name must be 64 characters or fewer".to_string(),
+            ));
+        }
+
+        if !trimmed.chars().all(|c| c.is_ascii_alphanumeric() || c == ' ' || c == '_' || c == '-') {
+            return Err(ArmouryError::InvalidValue(
+                "Profile name may only contain letters, numbers, spaces, '_' or '-'".to_string(),
+            ));
+        }
+
+        Ok(trimmed)
+    }
+
     /// Create a new profile manager
     pub fn new(config: &DaemonConfig) -> ArmouryResult<Self> {
         let profiles_dir = config.profiles_dir.clone();
@@ -53,6 +76,14 @@ impl ProfileManager {
         if manager.profiles.is_empty() {
             manager.create_default_profiles();
             manager.save_all_profiles()?;
+        }
+
+        if !manager.profiles.contains_key(&manager.current_profile) {
+            warn!(
+                "Configured default profile '{}' not found, falling back to Balanced",
+                manager.current_profile
+            );
+            manager.current_profile = "Balanced".to_string();
         }
 
         Ok(manager)
@@ -161,7 +192,8 @@ impl ProfileManager {
 
     /// Save a single profile to disk
     fn save_profile_to_disk(&self, profile: &Profile) -> ArmouryResult<()> {
-        let path = self.profiles_dir.join(format!("{}.json", profile.name));
+        let safe_name = Self::validate_profile_name(&profile.name)?;
+        let path = self.profiles_dir.join(format!("{}.json", safe_name));
         let content = serde_json::to_string_pretty(profile)
             .map_err(|e| ArmouryError::ConfigError(format!("Failed to serialize profile: {}", e)))?;
         fs::write(&path, content)?;
@@ -192,7 +224,7 @@ impl ProfileManager {
 
     /// Save or update a profile
     pub fn save_profile(&mut self, profile: Profile) -> ArmouryResult<()> {
-        let name = profile.name.clone();
+        let name = Self::validate_profile_name(&profile.name)?.to_string();
         self.save_profile_to_disk(&profile)?;
         self.profiles.insert(name, profile);
         Ok(())
@@ -200,24 +232,26 @@ impl ProfileManager {
 
     /// Delete a profile
     pub fn delete_profile(&mut self, name: &str) -> ArmouryResult<()> {
+        let safe_name = Self::validate_profile_name(name)?;
+
         // Don't delete default profiles
         let default_profiles = ["Gaming", "Work", "Silent", "Balanced"];
-        if default_profiles.contains(&name) {
+        if default_profiles.contains(&safe_name) {
             return Err(ArmouryError::InvalidValue(
                 "Cannot delete default profiles".to_string()
             ));
         }
 
-        if self.profiles.remove(name).is_some() {
-            let path = self.profiles_dir.join(format!("{}.json", name));
+        if self.profiles.remove(safe_name).is_some() {
+            let path = self.profiles_dir.join(format!("{}.json", safe_name));
             if path.exists() {
                 fs::remove_file(&path)?;
             }
-            info!("Deleted profile: {}", name);
+            info!("Deleted profile: {}", safe_name);
             Ok(())
         } else {
             Err(ArmouryError::InvalidValue(
-                format!("Profile not found: {}", name)
+                format!("Profile not found: {}", safe_name)
             ))
         }
     }

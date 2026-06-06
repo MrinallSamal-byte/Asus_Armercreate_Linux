@@ -2,7 +2,7 @@
 
 use asus_armoury_common::{
     dbus_interface::{DBUS_NAME, DBUS_PATH},
-    FanCurve, FanCurvePoint, GpuMode, PerformanceMode, RgbEffect, RgbSettings, SystemStatus,
+    FanCurve, FanMode, GpuMode, PerformanceMode, RgbSettings,
 };
 use log::{error, info};
 use std::sync::Arc;
@@ -246,6 +246,11 @@ impl ArmouryInterface {
             success = false;
         }
 
+        if let Err(e) = state.hardware.set_gpu_mode(profile.gpu_mode) {
+            error!("Failed to set GPU mode: {}", e);
+            success = false;
+        }
+
         if let Err(e) = state.hardware.set_rgb_settings(&profile.rgb_settings) {
             error!("Failed to set RGB settings: {}", e);
             // Don't fail completely if RGB fails
@@ -256,9 +261,21 @@ impl ArmouryInterface {
             // Don't fail completely if battery limit fails
         }
 
-        if let Some(ref curve) = profile.fan_curve {
-            if let Err(e) = state.hardware.set_fan_curve(curve) {
-                error!("Failed to set fan curve: {}", e);
+        match profile.fan_mode {
+            FanMode::Auto => {
+                if let Err(e) = state.hardware.reset_fan_auto() {
+                    error!("Failed to reset fan control to auto: {}", e);
+                }
+            }
+            FanMode::Manual => {
+                if let Some(ref curve) = profile.fan_curve {
+                    if let Err(e) = state.hardware.set_fan_curve(curve) {
+                        error!("Failed to set fan curve: {}", e);
+                    }
+                } else {
+                    error!("Profile '{}' is manual fan mode but has no fan curve", profile.name);
+                    success = false;
+                }
             }
         }
 
