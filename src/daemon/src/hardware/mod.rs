@@ -4,8 +4,7 @@ use asus_armoury_common::{
     ArmouryResult, FanCurve, GpuMode, HardwareCapabilities, PerformanceMode,
     RgbSettings, SystemStatus,
 };
-use log::{debug, info, warn};
-use std::fs;
+use log::{info, warn};
 use std::path::Path;
 
 mod sysfs;
@@ -23,22 +22,40 @@ pub struct HardwareController {
     current_performance_mode: PerformanceMode,
     /// Current GPU mode
     current_gpu_mode: GpuMode,
+    /// Whether to prefer asusctl for hardware control
+    use_asusctl: bool,
 }
 
 impl HardwareController {
-    /// Create a new hardware controller and detect capabilities
-    pub fn new() -> ArmouryResult<Self> {
+    /// Create a new hardware controller and detect capabilities.
+    ///
+    /// `use_asusctl` controls whether the controller will dispatch hardware
+    /// calls through the `asusctl` CLI (when it is available) rather than
+    /// writing directly to sysfs/ACPI paths.
+    pub fn new_with_config(use_asusctl: bool) -> ArmouryResult<Self> {
         let sysfs = SysfsInterface::new();
         let capabilities = Self::detect_capabilities(&sysfs);
-        
-        info!("Hardware controller initialized");
-        
+
+        // Honour the asusctl preference only when asusctl is actually present.
+        let effective_asusctl = use_asusctl && asusctl::is_available();
+        if use_asusctl && !effective_asusctl {
+            warn!("use_asusctl is enabled in config but asusctl is not available; falling back to sysfs");
+        }
+
+        info!("Hardware controller initialized (asusctl={})", effective_asusctl);
+
         Ok(Self {
             capabilities,
             sysfs,
             current_performance_mode: PerformanceMode::Balanced,
             current_gpu_mode: GpuMode::Hybrid,
+            use_asusctl: effective_asusctl,
         })
+    }
+
+    /// Create a new hardware controller with default configuration (asusctl disabled).
+    pub fn new() -> ArmouryResult<Self> {
+        Self::new_with_config(false)
     }
 
     /// Create a dummy controller for systems without ASUS hardware
@@ -48,6 +65,7 @@ impl HardwareController {
             sysfs: SysfsInterface::new(),
             current_performance_mode: PerformanceMode::Balanced,
             current_gpu_mode: GpuMode::Hybrid,
+            use_asusctl: false,
         }
     }
 
@@ -94,21 +112,37 @@ impl HardwareController {
 
     // ==================== Performance Mode ====================
 
-    /// Get current performance mode
+    /// Get current performance mode.
+    ///
+    /// When `use_asusctl` is active the current profile is read from `asusctl`;
+    /// otherwise the `platform_profile` sysfs attribute is used.  Falls back to
+    /// the last-known in-memory value if hardware readback fails.
     pub fn get_performance_mode(&self) -> PerformanceMode {
-        self.sysfs.read_platform_profile()
-            .unwrap_or(self.current_performance_mode)
+        if self.use_asusctl {
+            asusctl::get_profile().unwrap_or(self.current_performance_mode)
+        } else {
+            self.sysfs.read_platform_profile()
+                .unwrap_or(self.current_performance_mode)
+        }
     }
 
-    /// Set performance mode
+    /// Set performance mode.
+    ///
+    /// When `use_asusctl` is enabled the call is dispatched through the
+    /// `asusctl` CLI; otherwise the platform_profile sysfs interface is used.
     pub fn set_performance_mode(&mut self, mode: PerformanceMode) -> ArmouryResult<()> {
-        if !self.capabilities.performance_modes {
+        if !self.capabilities.performance_modes && !self.use_asusctl {
             return Err(asus_armoury_common::ArmouryError::FeatureNotAvailable(
                 "Performance modes not supported on this hardware".to_string()
             ));
         }
 
-        self.sysfs.write_platform_profile(mode)?;
+        if self.use_asusctl {
+            asusctl::set_profile(mode)?;
+        } else {
+            self.sysfs.write_platform_profile(mode)?;
+        }
+
         self.current_performance_mode = mode;
         info!("Performance mode set to: {}", mode);
         Ok(())
@@ -203,21 +237,35 @@ impl HardwareController {
 
     // ==================== RGB Keyboard ====================
 
-    /// Get current RGB settings
+    /// Get current RGB settings.
+    ///
+    /// Full readback of RGB state from hardware is not yet implemented —
+    /// ASUS RGB control typically requires USB HID access (Aura) or the
+    /// `asusctl` utility. This returns the application default until proper
+    /// readback is added.
     pub fn get_rgb_settings(&self) -> RgbSettings {
-        // TODO: Read from hardware
         RgbSettings::default()
     }
 
-    /// Set RGB settings
+    /// Set RGB settings.
+    ///
+    /// When `use_asusctl` is enabled the call is dispatched through the
+    /// `asusctl` CLI (LED mode + brightness); otherwise brightness is written
+    /// directly via sysfs.
     pub fn set_rgb_settings(&mut self, settings: &RgbSettings) -> ArmouryResult<()> {
-        if !self.capabilities.rgb_keyboard {
+        if !self.capabilities.rgb_keyboard && !self.use_asusctl {
             return Err(asus_armoury_common::ArmouryError::FeatureNotAvailable(
                 "RGB keyboard not supported on this hardware".to_string()
             ));
         }
 
-        self.sysfs.write_rgb_settings(settings)?;
+        if self.use_asusctl {
+            asusctl::set_led_mode(settings)?;
+            asusctl::set_kbd_brightness(settings.brightness)?;
+        } else {
+            self.sysfs.write_rgb_settings(settings)?;
+        }
+
         info!("RGB settings applied: effect={}, brightness={}", settings.effect, settings.brightness);
         Ok(())
     }
@@ -229,9 +277,13 @@ impl HardwareController {
         self.sysfs.read_battery_limit().unwrap_or(100)
     }
 
-    /// Set battery charge limit
+    /// Set battery charge limit.
+    ///
+    /// Accepted values are 60, 80, and 100 (percent). When `use_asusctl` is
+    /// enabled the call is dispatched through `asusctl`; otherwise the sysfs
+    /// `charge_control_end_threshold` attribute is used.
     pub fn set_battery_limit(&mut self, limit: u8) -> ArmouryResult<()> {
-        if !self.capabilities.battery_limit {
+        if !self.capabilities.battery_limit && !self.use_asusctl {
             return Err(asus_armoury_common::ArmouryError::FeatureNotAvailable(
                 "Battery charge limit not supported on this hardware".to_string()
             ));
@@ -245,7 +297,12 @@ impl HardwareController {
             ));
         }
 
-        self.sysfs.write_battery_limit(limit)?;
+        if self.use_asusctl {
+            asusctl::set_charge_limit(limit)?;
+        } else {
+            self.sysfs.write_battery_limit(limit)?;
+        }
+
         info!("Battery charge limit set to: {}%", limit);
         Ok(())
     }

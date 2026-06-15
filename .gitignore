@@ -1,6 +1,9 @@
 # Rust build artifacts
 /target/
-Cargo.lock
+
+# Note: Cargo.lock is intentionally tracked for this binary workspace.
+# It ensures reproducible builds for the daemon and GUI applications.
+# (Only pure libraries should exclude Cargo.lock from version control.)
 
 # IDE files
 .vscode/

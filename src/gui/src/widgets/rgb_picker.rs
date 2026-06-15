@@ -1,6 +1,6 @@
 //! RGB color picker widget
 
-use gtk4::{glib, prelude::*, Box, ColorButton, Label, Orientation, Scale};
+use gtk4::{prelude::*, Box, ColorButton, Label, Orientation, Scale};
 use asus_armoury_common::{RgbColor, RgbEffect, RgbSettings};
 
 /// Widget for selecting RGB colors and effects

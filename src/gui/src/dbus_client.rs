@@ -1,9 +1,6 @@
 //! D-Bus client for communicating with the daemon
 
-use asus_armoury_common::{
-    dbus_interface::{DBUS_NAME, DBUS_PATH},
-    HardwareCapabilities, Profile, RgbSettings, SystemStatus,
-};
+use asus_armoury_common::{HardwareCapabilities, RgbSettings, SystemStatus};
 use log::{error, info};
 use zbus::{proxy, Connection, Result};
 
@@ -54,7 +51,11 @@ impl DaemonClient {
     pub async fn new() -> Self {
         match Connection::system().await {
             Ok(conn) => {
-                // Need to leak connection to get 'static lifetime for proxy
+                // SAFETY: We intentionally leak the connection here to obtain a
+                // `'static` reference required by `ArmouryProxy::new`. The
+                // connection lives for the entire application lifetime so the
+                // leak is bounded and acceptable. A future refactor should use
+                // `Arc<Connection>` with a custom proxy if zbus adds support.
                 let conn = Box::leak(Box::new(conn));
                 match ArmouryProxy::new(conn).await {
                     Ok(proxy) => {

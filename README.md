@@ -141,26 +141,44 @@ asus-armoury-gui
 
 Or find "ASUS Armoury Crate" in your application menu.
 
-### Command Line Interface (planned)
+### Command Line Interface (not yet implemented)
 
-```bash
-# Get current performance mode
-asus-armoury-cli get-performance
-
-# Set performance mode
-asus-armoury-cli set-performance turbo
-
-# Set battery limit
-asus-armoury-cli set-battery-limit 80
-```
+A CLI binary (`asus-armoury-cli`) is planned but not yet part of this codebase.
+In the meantime, you can query and control the daemon directly via D-Bus using
+`gdbus` or any D-Bus client tool on the `org.asuslinux.Armoury` service.
 
 ## Configuration
 
 Configuration files are stored in:
-- Daemon config: `~/.config/armoury/daemon.json`
-- User profiles: `~/.local/share/armoury/profiles/`
+- Daemon config: `~/.config/asuslinux-armoury/daemon.json`
+- User profiles: `~/.local/share/asuslinux-armoury/profiles/`
 
-### Example Profile
+If the config file is missing it is created automatically with safe defaults.  
+If it is present but malformed the daemon logs a warning and starts with defaults — it never fails to start due to a bad config.
+
+### Daemon config (`daemon.json`) — all fields
+
+```json
+{
+  "profiles_dir": "~/.local/share/asuslinux-armoury/profiles",
+  "default_profile": "Balanced",
+  "debug": false,
+  "poll_interval_ms": 1000,
+  "use_asusctl": true,
+  "use_supergfxctl": true
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `profiles_dir` | path | XDG data dir | Directory where profile JSON files are stored |
+| `default_profile` | string | `"Balanced"` | Profile applied on daemon startup |
+| `debug` | bool | `false` | Enable verbose debug logging |
+| `poll_interval_ms` | u64 | `1000` | System-status poll interval in milliseconds |
+| `use_asusctl` | bool | `true` | Route hardware calls through `asusctl` CLI when available |
+| `use_supergfxctl` | bool | `true` | Use `supergfxctl` for GPU mode switching |
+
+### Example Profile (stored in `profiles/Gaming.json`)
 
 ```json
 {
@@ -168,9 +186,11 @@ Configuration files are stored in:
   "performance_mode": "Turbo",
   "gpu_mode": "Dedicated",
   "fan_mode": "Auto",
+  "fan_curve": null,
   "rgb_settings": {
     "effect": "Rainbow",
     "color": {"r": 255, "g": 0, "b": 0},
+    "color_secondary": null,
     "brightness": 100,
     "speed": 75
   },
@@ -178,6 +198,70 @@ Configuration files are stored in:
     "charge_limit": 100
   }
 }
+```
+
+#### Fan curve format (used when `fan_mode` is `"Manual"`)
+
+```json
+"fan_curve": {
+  "name": "Custom",
+  "points": [
+    {"temperature": 30, "fan_percent": 0},
+    {"temperature": 50, "fan_percent": 30},
+    {"temperature": 70, "fan_percent": 70},
+    {"temperature": 90, "fan_percent": 100}
+  ]
+}
+```
+
+**Fan curve constraints** (validated by the daemon before applying):
+- At least one point required.
+- `temperature` must be 0–100 °C; `fan_percent` must be 0–100 %.
+- Points must be in strictly ascending temperature order.
+
+**RGB constraints**: `brightness` and `speed` must be 0–100.
+
+## D-Bus Interface
+
+The daemon exposes a single D-Bus interface:
+
+| Property | Value |
+|---|---|
+| Service name | `org.asuslinux.Armoury` |
+| Object path  | `/org/asuslinux/Armoury` |
+| Interface    | `org.asuslinux.Armoury` |
+
+### Methods
+
+| Method | Signature | Description |
+|---|---|---|
+| `version` | `() → String` | Returns daemon version string |
+| `get_capabilities` | `() → String` | Returns JSON-encoded `HardwareCapabilities` |
+| `get_system_status` | `() → String` | Returns JSON-encoded `SystemStatus` |
+| `get_performance_mode` | `() → String` | Current mode: `Silent`, `Balanced`, `Turbo`, `Manual` |
+| `set_performance_mode` | `(mode: String) → bool` | Set mode; returns `true` on success |
+| `get_gpu_mode` | `() → String` | Current GPU mode: `Integrated`, `Hybrid`, `Dedicated`, `Compute` |
+| `set_gpu_mode` | `(mode: String) → bool` | Set GPU mode (may require session restart) |
+| `get_fan_speeds` | `() → String` | JSON `{"cpu": rpm, "gpu": rpm}` |
+| `set_fan_curve` | `(curve_json: String) → bool` | Apply JSON-encoded `FanCurve` (validated before applying) |
+| `reset_fan_auto` | `() → bool` | Return fan control to automatic |
+| `get_temperatures` | `() → String` | JSON `{"cpu": °C, "gpu": °C}` |
+| `get_rgb_settings` | `() → String` | JSON-encoded `RgbSettings` |
+| `set_rgb_settings` | `(settings_json: String) → bool` | Apply JSON-encoded `RgbSettings` (validated before applying) |
+| `get_battery_limit` | `() → u8` | Current charge limit (60, 80, or 100) |
+| `set_battery_limit` | `(limit: u8) → bool` | Set charge limit; only 60/80/100 are accepted |
+| `list_profiles` | `() → String` | JSON array of profile names |
+| `get_current_profile` | `() → String` | Name of the active profile |
+| `get_profile` | `(name: String) → String` | JSON-encoded `Profile` or empty string |
+| `apply_profile` | `(name: String) → bool` | Apply all settings from named profile |
+| `save_profile` | `(profile_json: String) → bool` | Save/overwrite a profile from JSON |
+| `delete_profile` | `(name: String) → bool` | Delete a user profile (built-in profiles are protected) |
+
+You can inspect the interface with `gdbus`:
+```bash
+gdbus introspect --system --dest org.asuslinux.Armoury --object-path /org/asuslinux/Armoury
+gdbus call --system --dest org.asuslinux.Armoury --object-path /org/asuslinux/Armoury \
+    --method org.asuslinux.Armoury.get_system_status
 ```
 
 ## Architecture

@@ -3,11 +3,21 @@
 use gtk4::{glib, prelude::*, Application, Box, Label, Orientation};
 use libadwaita as adw;
 use adw::prelude::*;
+use log::warn;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::dbus_client::DaemonClient;
-use crate::widgets;
+
+/// Status labels that are updated by the periodic polling task.
+struct StatusLabels {
+    cpu_temp: Label,
+    gpu_temp: Label,
+    cpu_fan: Label,
+    gpu_fan: Label,
+    battery: Label,
+    performance: Label,
+}
 
 /// Main application window
 pub struct MainWindow {
@@ -19,7 +29,7 @@ impl MainWindow {
     pub fn new(app: &Application) -> Self {
         // Initialize D-Bus client
         let client = Arc::new(Mutex::new(DaemonClient::default()));
-        
+
         // Create the main window
         let window = adw::ApplicationWindow::builder()
             .application(app)
@@ -30,7 +40,7 @@ impl MainWindow {
 
         // Create header bar
         let header = adw::HeaderBar::new();
-        
+
         // Add profile selector to header
         let profile_dropdown = gtk4::DropDown::from_strings(&[
             "Gaming", "Work", "Silent", "Balanced"
@@ -38,12 +48,9 @@ impl MainWindow {
         profile_dropdown.set_tooltip_text(Some("Select Profile"));
         header.pack_start(&profile_dropdown);
 
-        // Create navigation view with pages
-        let nav_view = adw::NavigationView::new();
-        
         // Create main content with sidebar navigation
         let split_view = adw::NavigationSplitView::new();
-        
+
         // Create sidebar
         let sidebar_content = Self::create_sidebar();
         let sidebar_page = adw::NavigationPage::builder()
@@ -51,12 +58,12 @@ impl MainWindow {
             .child(&sidebar_content)
             .build();
         split_view.set_sidebar(Some(&sidebar_page));
-        
-        // Create main content
-        let content = Self::create_content();
+
+        // Create main content (returns widget + label refs for live updates)
+        let (content_widget, status_labels) = Self::create_content();
         let content_page = adw::NavigationPage::builder()
             .title("Dashboard")
-            .child(&content)
+            .child(&content_widget)
             .build();
         split_view.set_content(Some(&content_page));
 
@@ -67,24 +74,24 @@ impl MainWindow {
 
         window.set_content(Some(&main_box));
 
-        let window_obj = Self { 
+        let window_obj = Self {
             window: window.clone(),
             client: client.clone(),
         };
-        
+
         // Connect to daemon asynchronously
         let client_clone = client.clone();
         glib::MainContext::default().spawn_local(async move {
             let mut client_guard = client_clone.lock().await;
             *client_guard = DaemonClient::new().await;
-            
+
             if !client_guard.is_connected() {
-                eprintln!("Warning: Could not connect to daemon. Some features may not work.");
+                warn!("Could not connect to daemon. Some features may not work.");
             }
         });
-        
-        // Start periodic status updates
-        Self::start_status_updates(client, window.clone());
+
+        // Start periodic status updates, passing live label references
+        Self::start_status_updates(client, status_labels);
 
         window_obj
     }
@@ -119,7 +126,7 @@ impl MainWindow {
 
     fn create_nav_row(icon_name: &str, label_text: &str) -> gtk4::ListBoxRow {
         let row = gtk4::ListBoxRow::new();
-        
+
         let hbox = Box::new(Orientation::Horizontal, 12);
         hbox.set_margin_top(8);
         hbox.set_margin_bottom(8);
@@ -128,15 +135,18 @@ impl MainWindow {
 
         let icon = gtk4::Image::from_icon_name(icon_name);
         let label = Label::new(Some(label_text));
-        
+
         hbox.append(&icon);
         hbox.append(&label);
-        
+
         row.set_child(Some(&hbox));
         row
     }
 
-    fn create_content() -> gtk4::Widget {
+    /// Build the main content area and return both the widget and live label
+    /// references so the polling task can update them without requiring a
+    /// global lookup.
+    fn create_content() -> (gtk4::Widget, StatusLabels) {
         let scroll = gtk4::ScrolledWindow::new();
         scroll.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Automatic);
 
@@ -153,16 +163,19 @@ impl MainWindow {
         content_box.append(&title);
 
         // System status cards
-        content_box.append(&Self::create_status_section());
+        let (status_widget, status_labels) = Self::create_status_section();
+        content_box.append(&status_widget);
 
         // Quick actions
         content_box.append(&Self::create_quick_actions());
 
         scroll.set_child(Some(&content_box));
-        scroll.upcast()
+        (scroll.upcast(), status_labels)
     }
 
-    fn create_status_section() -> gtk4::Widget {
+    /// Build the status card grid and return it together with mutable `Label`
+    /// handles so the polling task can push live data into them.
+    fn create_status_section() -> (gtk4::Widget, StatusLabels) {
         let flow_box = gtk4::FlowBox::new();
         flow_box.set_selection_mode(gtk4::SelectionMode::None);
         flow_box.set_homogeneous(true);
@@ -171,52 +184,45 @@ impl MainWindow {
         flow_box.set_row_spacing(12);
         flow_box.set_column_spacing(12);
 
-        // CPU Temperature card
-        flow_box.append(&Self::create_status_card(
-            "CPU Temperature",
-            "45°C",
-            "temperature-symbolic",
-        ));
+        let (cpu_temp_widget, cpu_temp_label) =
+            Self::create_status_card("CPU Temperature", "—", "temperature-symbolic");
+        flow_box.append(&cpu_temp_widget);
 
-        // GPU Temperature card
-        flow_box.append(&Self::create_status_card(
-            "GPU Temperature",
-            "42°C",
-            "temperature-symbolic",
-        ));
+        let (gpu_temp_widget, gpu_temp_label) =
+            Self::create_status_card("GPU Temperature", "—", "temperature-symbolic");
+        flow_box.append(&gpu_temp_widget);
 
-        // CPU Fan card
-        flow_box.append(&Self::create_status_card(
-            "CPU Fan",
-            "2100 RPM",
-            "weather-windy-symbolic",
-        ));
+        let (cpu_fan_widget, cpu_fan_label) =
+            Self::create_status_card("CPU Fan", "—", "weather-windy-symbolic");
+        flow_box.append(&cpu_fan_widget);
 
-        // GPU Fan card
-        flow_box.append(&Self::create_status_card(
-            "GPU Fan",
-            "1800 RPM",
-            "weather-windy-symbolic",
-        ));
+        let (gpu_fan_widget, gpu_fan_label) =
+            Self::create_status_card("GPU Fan", "—", "weather-windy-symbolic");
+        flow_box.append(&gpu_fan_widget);
 
-        // Battery card
-        flow_box.append(&Self::create_status_card(
-            "Battery",
-            "85%",
-            "battery-good-symbolic",
-        ));
+        let (battery_widget, battery_label) =
+            Self::create_status_card("Battery", "—", "battery-symbolic");
+        flow_box.append(&battery_widget);
 
-        // Performance mode card
-        flow_box.append(&Self::create_status_card(
-            "Performance",
-            "Balanced",
-            "speedometer-symbolic",
-        ));
+        let (perf_widget, perf_label) =
+            Self::create_status_card("Performance", "—", "speedometer-symbolic");
+        flow_box.append(&perf_widget);
 
-        flow_box.upcast()
+        let labels = StatusLabels {
+            cpu_temp: cpu_temp_label,
+            gpu_temp: gpu_temp_label,
+            cpu_fan: cpu_fan_label,
+            gpu_fan: gpu_fan_label,
+            battery: battery_label,
+            performance: perf_label,
+        };
+
+        (flow_box.upcast(), labels)
     }
 
-    fn create_status_card(title: &str, value: &str, icon: &str) -> gtk4::Widget {
+    /// Create a single status card.  Returns the card widget and a handle to
+    /// the value `Label` so callers can update the displayed value.
+    fn create_status_card(title: &str, initial_value: &str, icon: &str) -> (gtk4::Widget, Label) {
         let card = Box::new(Orientation::Vertical, 8);
         card.add_css_class("card");
         card.set_margin_top(12);
@@ -232,14 +238,14 @@ impl MainWindow {
         title_label.add_css_class("caption");
         title_label.add_css_class("dim-label");
 
-        let value_label = Label::new(Some(value));
+        let value_label = Label::new(Some(initial_value));
         value_label.add_css_class("title-2");
 
         card.append(&icon_widget);
         card.append(&title_label);
         card.append(&value_label);
 
-        card.upcast()
+        (card.upcast(), value_label)
     }
 
     fn create_quick_actions() -> gtk4::Widget {
@@ -259,7 +265,7 @@ impl MainWindow {
         // GPU mode row
         let gpu_row = adw::ComboRow::new();
         gpu_row.set_title("GPU Mode");
-        gpu_row.set_subtitle("Graphics switching mode");
+        gpu_row.set_subtitle("Graphics switching mode (session restart may be required)");
         gpu_row.set_model(Some(&gtk4::StringList::new(&[
             "Integrated", "Hybrid", "Dedicated"
         ])));
@@ -285,21 +291,38 @@ impl MainWindow {
 
         group.upcast()
     }
-    
-    fn start_status_updates(client: Arc<Mutex<DaemonClient>>, _window: adw::ApplicationWindow) {
-        // Schedule periodic updates every 2 seconds
+
+    /// Schedule a 2-second polling timer that fetches live hardware data from
+    /// the daemon and pushes it into the status card labels.
+    fn start_status_updates(client: Arc<Mutex<DaemonClient>>, labels: StatusLabels) {
+        // Wrap labels in Arc so they can be shared with the closure.
+        let labels = Arc::new(labels);
+
         glib::timeout_add_seconds_local(2, move || {
             let client = client.clone();
+            let labels = labels.clone();
+
             glib::MainContext::default().spawn_local(async move {
                 let client_guard = client.lock().await;
-                if client_guard.is_connected() {
-                    // Fetch status from daemon
-                    if let Some(_status) = client_guard.get_system_status().await {
-                        // TODO: Update UI widgets with new status
-                        // This would require storing references to the UI widgets
-                    }
+                if !client_guard.is_connected() {
+                    return;
+                }
+
+                // Fetch temperatures and fan speeds in parallel (sequentially
+                // here because the proxy is borrowed, but each call is cheap).
+                if let Some(status) = client_guard.get_system_status().await {
+                    labels.cpu_temp.set_text(&format!("{:.0}°C", status.cpu_temp));
+                    labels.gpu_temp.set_text(&format!("{:.0}°C", status.gpu_temp));
+                    labels.cpu_fan.set_text(&format!("{} RPM", status.cpu_fan_rpm));
+                    labels.gpu_fan.set_text(&format!("{} RPM", status.gpu_fan_rpm));
+                    labels.battery.set_text(&format!("{}%", status.battery_percent));
+                }
+
+                if let Some(mode) = client_guard.get_performance_mode().await {
+                    labels.performance.set_text(&mode);
                 }
             });
+
             glib::ControlFlow::Continue
         });
     }

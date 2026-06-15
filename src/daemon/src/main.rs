@@ -26,7 +26,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Result<Self> {
         let config = DaemonConfig::load()?;
-        let hardware = HardwareController::new()?;
+        let hardware = HardwareController::new_with_config(config.use_asusctl)?;
         let profiles = ProfileManager::new(&config)?;
 
         Ok(Self {

@@ -183,10 +183,17 @@ impl ProfileManager {
         &self.current_profile
     }
 
-    /// Set current profile
-    pub fn set_current_profile(&mut self, name: &str) {
+    /// Set current profile by name.
+    ///
+    /// Returns `true` if the profile exists and was set, `false` if the name
+    /// was not found (the current profile is left unchanged).
+    pub fn set_current_profile(&mut self, name: &str) -> bool {
         if self.profiles.contains_key(name) {
             self.current_profile = name.to_string();
+            true
+        } else {
+            warn!("Attempted to set unknown profile: {}", name);
+            false
         }
     }
 

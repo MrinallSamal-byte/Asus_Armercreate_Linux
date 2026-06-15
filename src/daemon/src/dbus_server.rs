@@ -2,12 +2,12 @@
 
 use asus_armoury_common::{
     dbus_interface::{DBUS_NAME, DBUS_PATH},
-    FanCurve, FanCurvePoint, GpuMode, PerformanceMode, RgbEffect, RgbSettings, SystemStatus,
+    FanCurve, GpuMode, PerformanceMode, RgbSettings,
 };
 use log::{error, info};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use zbus::{interface, Connection, ConnectionBuilder};
+use zbus::{interface, ConnectionBuilder};
 
 use crate::AppState;
 
@@ -110,7 +110,7 @@ impl ArmouryInterface {
     /// Set fan curve from JSON
     async fn set_fan_curve(&self, curve_json: &str) -> bool {
         let mut state = self.state.write().await;
-        
+
         let curve: FanCurve = match serde_json::from_str(curve_json) {
             Ok(c) => c,
             Err(e) => {
@@ -118,7 +118,13 @@ impl ArmouryInterface {
                 return false;
             }
         };
-        
+
+        // Validate the curve before sending it to hardware.
+        if let Err(reason) = curve.validate() {
+            error!("Fan curve validation failed: {}", reason);
+            return false;
+        }
+
         match state.hardware.set_fan_curve(&curve) {
             Ok(()) => true,
             Err(e) => {
@@ -161,7 +167,7 @@ impl ArmouryInterface {
     /// Set RGB settings from JSON
     async fn set_rgb_settings(&self, settings_json: &str) -> bool {
         let mut state = self.state.write().await;
-        
+
         let settings: RgbSettings = match serde_json::from_str(settings_json) {
             Ok(s) => s,
             Err(e) => {
@@ -169,7 +175,13 @@ impl ArmouryInterface {
                 return false;
             }
         };
-        
+
+        // Validate brightness/speed ranges before touching hardware.
+        if let Err(reason) = settings.validate() {
+            error!("RGB settings validation failed: {}", reason);
+            return false;
+        }
+
         match state.hardware.set_rgb_settings(&settings) {
             Ok(()) => true,
             Err(e) => {
@@ -244,6 +256,19 @@ impl ArmouryInterface {
         if let Err(e) = state.hardware.set_performance_mode(profile.performance_mode) {
             error!("Failed to set performance mode: {}", e);
             success = false;
+        }
+
+        // GPU mode switching is performed on a best-effort basis. Switching
+        // between Integrated/Hybrid/Dedicated typically requires the user to log
+        // out and back in (or reboot) for the change to fully take effect, as the
+        // display server must release its hold on the GPU. The call is made
+        // unconditionally so the new mode is recorded in the kernel driver; the
+        // calling application should inform the user that a session restart may be
+        // needed.
+        if let Err(e) = state.hardware.set_gpu_mode(profile.gpu_mode) {
+            error!("Failed to set GPU mode: {}", e);
+            // Don't fail the entire profile apply if GPU mode switching is
+            // unavailable (e.g., supergfxctl not installed).
         }
 
         if let Err(e) = state.hardware.set_rgb_settings(&profile.rgb_settings) {

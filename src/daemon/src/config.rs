@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use directories::ProjectDirs;
+use log::warn;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -37,19 +38,46 @@ impl Default for DaemonConfig {
 }
 
 impl DaemonConfig {
-    /// Load configuration from file or create default
+    /// Load configuration from file, or return a safe default.
+    ///
+    /// If the config file is missing the default is written to disk so that
+    /// subsequent runs can edit it.  If the file exists but is malformed (e.g.
+    /// due to a partial write) a warning is logged and the in-memory default is
+    /// returned — the daemon continues to run with safe settings rather than
+    /// failing to start.
     pub fn load() -> Result<Self> {
         let config_path = Self::config_file_path();
-        
+
         if config_path.exists() {
-            let content = fs::read_to_string(&config_path)?;
-            let config: DaemonConfig = serde_json::from_str(&content)?;
-            Ok(config)
-        } else {
-            let config = Self::default();
-            config.save()?;
-            Ok(config)
+            match fs::read_to_string(&config_path) {
+                Ok(content) => match serde_json::from_str::<DaemonConfig>(&content) {
+                    Ok(config) => return Ok(config),
+                    Err(e) => {
+                        warn!(
+                            "Config file {:?} is malformed ({}); using defaults",
+                            config_path,
+                            e
+                        );
+                        return Ok(Self::default());
+                    }
+                },
+                Err(e) => {
+                    warn!(
+                        "Cannot read config file {:?} ({}); using defaults",
+                        config_path,
+                        e
+                    );
+                    return Ok(Self::default());
+                }
+            }
         }
+
+        // File does not exist yet — write the defaults so the user can edit them.
+        let config = Self::default();
+        if let Err(e) = config.save() {
+            warn!("Could not write default config to {:?}: {}", config_path, e);
+        }
+        Ok(config)
     }
 
     /// Save configuration to file

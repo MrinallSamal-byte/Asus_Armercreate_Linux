@@ -1,6 +1,6 @@
 //! Fan curve editor widget
 
-use gtk4::{glib, prelude::*, DrawingArea};
+use gtk4::{prelude::*, DrawingArea};
 use asus_armoury_common::{FanCurve, FanCurvePoint};
 
 /// Widget for editing fan curves
@@ -97,9 +97,10 @@ impl FanCurveWidget {
                 let temp = i * 20;
                 let x = padding + (temp as f64 / 100.0) * graph_width;
                 let text = format!("{}°C", temp);
-                let extents = cr.text_extents(&text).unwrap();
-                cr.move_to(x - extents.width() / 2.0, height - padding + 15.0);
-                let _ = cr.show_text(&text);
+                if let Ok(extents) = cr.text_extents(&text) {
+                    cr.move_to(x - extents.width() / 2.0, height - padding + 15.0);
+                    let _ = cr.show_text(&text);
+                }
             }
 
             // Y-axis labels (fan %)
@@ -107,9 +108,10 @@ impl FanCurveWidget {
                 let percent = i * 20;
                 let y = height - padding - (percent as f64 / 100.0) * graph_height;
                 let text = format!("{}%", percent);
-                let extents = cr.text_extents(&text).unwrap();
-                cr.move_to(padding - extents.width() - 5.0, y + extents.height() / 2.0);
-                let _ = cr.show_text(&text);
+                if let Ok(extents) = cr.text_extents(&text) {
+                    cr.move_to(padding - extents.width() - 5.0, y + extents.height() / 2.0);
+                    let _ = cr.show_text(&text);
+                }
             }
         });
     }

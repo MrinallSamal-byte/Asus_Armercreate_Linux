@@ -2,7 +2,10 @@
 
 use thiserror::Error;
 
-/// Main error type for the application
+/// Unified error type used by the daemon and common library.
+///
+/// GUI code should translate these into user-visible messages; library code
+/// should propagate them with `?`.
 #[derive(Error, Debug)]
 pub enum ArmouryError {
     #[error("Hardware not supported: {0}")]
@@ -33,5 +36,5 @@ pub enum ArmouryError {
     ServiceNotRunning,
 }
 
-/// Result type alias using ArmouryError
+/// Convenience `Result` alias that uses [`ArmouryError`] as the error type.
 pub type ArmouryResult<T> = Result<T, ArmouryError>;

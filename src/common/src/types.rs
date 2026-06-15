@@ -112,6 +112,49 @@ impl Default for FanCurve {
     }
 }
 
+impl FanCurve {
+    /// Validate the fan curve, returning an error string if invalid.
+    ///
+    /// Rules enforced:
+    /// - At least one point must be present.
+    /// - Temperature must be in the range 0–100 °C.
+    /// - Fan speed must be in the range 0–100 %.
+    /// - Points must be sorted in strictly ascending temperature order
+    ///   (duplicates are not permitted).
+    pub fn validate(&self) -> Result<(), String> {
+        if self.points.is_empty() {
+            return Err("Fan curve must have at least one point".to_string());
+        }
+
+        let mut prev_temp: Option<u8> = None;
+        for (i, point) in self.points.iter().enumerate() {
+            if point.temperature > 100 {
+                return Err(format!(
+                    "Point {}: temperature {} exceeds maximum of 100 °C",
+                    i, point.temperature
+                ));
+            }
+            if point.fan_percent > 100 {
+                return Err(format!(
+                    "Point {}: fan_percent {} exceeds maximum of 100%",
+                    i, point.fan_percent
+                ));
+            }
+            if let Some(prev) = prev_temp {
+                if point.temperature <= prev {
+                    return Err(format!(
+                        "Point {}: temperature {} is not strictly greater than previous temperature {}",
+                        i, point.temperature, prev
+                    ));
+                }
+            }
+            prev_temp = Some(point.temperature);
+        }
+
+        Ok(())
+    }
+}
+
 /// RGB lighting effects
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RgbEffect {
@@ -151,19 +194,29 @@ impl std::fmt::Display for RgbEffect {
     }
 }
 
-/// RGB color value
+/// RGB color value (24-bit, one byte per channel).
+///
+/// Each channel is in the range 0–255.  The struct derives `Default` which
+/// yields black (`#000000`).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub struct RgbColor {
+    /// Red channel (0–255).
     pub r: u8,
+    /// Green channel (0–255).
     pub g: u8,
+    /// Blue channel (0–255).
     pub b: u8,
 }
 
 impl RgbColor {
+    /// Create a new `RgbColor` from individual channel values (0–255).
     pub fn new(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b }
     }
 
+    /// Parse an RGB color from a CSS-style hex string (with or without `#`).
+    ///
+    /// Returns `None` if the string is not a valid 6-digit hex color.
     pub fn from_hex(hex: &str) -> Option<Self> {
         let hex = hex.trim_start_matches('#');
         if hex.len() != 6 {
@@ -175,8 +228,29 @@ impl RgbColor {
         Some(Self { r, g, b })
     }
 
+    /// Format the color as an uppercase CSS hex string (e.g. `"#FF8000"`).
     pub fn to_hex(&self) -> String {
         format!("#{:02X}{:02X}{:02X}", self.r, self.g, self.b)
+    }
+}
+
+impl RgbSettings {
+    /// Validate the RGB settings.
+    ///
+    /// Currently checks that brightness and speed are in the range 0–100.
+    /// Individual channel values of `RgbColor` are always valid because they
+    /// are stored as `u8` (0–255).
+    pub fn validate(&self) -> Result<(), String> {
+        if self.brightness > 100 {
+            return Err(format!(
+                "Brightness {} is out of range (0–100)",
+                self.brightness
+            ));
+        }
+        if self.speed > 100 {
+            return Err(format!("Speed {} is out of range (0–100)", self.speed));
+        }
+        Ok(())
     }
 }
 

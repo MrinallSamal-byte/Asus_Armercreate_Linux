@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 description = "Common types and utilities for ASUS Armoury Crate Linux"
 license.workspace = true
+keywords = ["asus", "armoury", "fan-control", "rgb", "linux"]
+categories = ["hardware-support", "os::linux-apis"]
 
 [dependencies]
 serde = { workspace = true }
